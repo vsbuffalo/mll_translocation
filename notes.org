@@ -1,0 +1,12 @@
+#+title: Split Paired-End Read Statistics
+#+author: Vince Buffalo
+#+email: vsbuffalo@ucdavis.edu
+#+date: 
+
+* Finding split paired-end reads with =ss.py=
+
+=ss.py= first gathers all paired-end reads in the dataset in a hash by
+reference name. The reads must be mapped and paired, according to the
+SAM file bitflag field. Note that when only proper-paired-end reads
+are used, the number of split paired-end reads produced is 0.
+
