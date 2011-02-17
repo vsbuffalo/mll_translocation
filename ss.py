@@ -98,9 +98,9 @@ class MappedPairs(object):
                     os.mkdir(outdir)
             with open(filename, 'w') as f:
                 for readname, readset in self.grouped_odd_pairs[key].items():
-                    f.write("%s\t%s\t%s\n" % (readname, readset[0].seq, readset[1].seq))
+                    f.write("%s\t%s\t%s\t%s\t%s\n" % (readname, readset[0].seq, readset[1].seq,
+                                                      readset[0].pos, readset[1].pos))
                     
-            
 
 if __name__ == "__main__":
     parser = OptionParser()
