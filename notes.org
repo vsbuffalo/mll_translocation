@@ -82,7 +82,7 @@ most reads.
     chrs <- unlist(strsplit(tmp, ";;;;"))
     cnames <- paste(c('seq', 'seq', 'pos', 'pos'), chrs, sep='.')
     d <- read.delim(paste(dirname, x, sep='/'), header=FALSE)
-    colnames(d) <- c('read.name', cnames)
+    colnames(d) <- c('read.name', cnames, 'read1')
     return(d)
   })
   
@@ -93,9 +93,9 @@ most reads.
   lengths <- unlist(lapply(data, nrow))
   group.with.most.reads <- names(data)[which(max(lengths) == lengths)]
 
-  cat("group with most reads:", most.reads, "\n")
-
   d <- data[[group.with.most.reads]]
+  #d <- data[['CAGTACT-chr11-chr2']]
+  d <- d[d$read1 == 'chr11',]
 #+end_src
 
 #+results:
@@ -124,7 +124,7 @@ this position.
 #+end_src
 
 #+results:
-: [1] "Number of reads in region of interest: 0.00372"
+: [1] "Number of reads in region of interest: 0.00637"
 
 
 Most reads are not in the region of interest. Where are they? Is the region of interest incorrect?
@@ -138,7 +138,7 @@ Most reads are not in the region of interest. Where are they? Is the region of i
 
 #+results:
 :  (1.1835e+08,1.1836e+08] 
-:                    6394
+:                    1240
 
 
 Now we have a new candidate region of interest. Where in this region
@@ -163,7 +163,7 @@ What is the mode of this plot?
 #+end_src
 
 #+results:
-: [1] 118358800
+: [1] 118358821
 
 What do the mapped sequences that have this position look like?
 
@@ -172,7 +172,7 @@ print(as.character(d$seq.chr11[d$pos.chr11 == pos.mode][1]))
 #+end_src
 
 #+results:
-: [1] "TGGAGAATCGCTTGAACCCAGGAGGCGGAGGTTGCAGTGAGTCGAGATCGCACCACTGCACCCCAGCCTGGGCGAC"
+: [1] "GAGGCGGAGGTTGCAGTGAGTCGAGATCGCACCACTGCACCCCAGCCTGGGCGACAGCGAGACTCCGTCTCAAAAAAA"
 
 Where does this sequence reside in the unrearranged MLL template?
 There are some mismatches, but the region is show with =[= and =]=
@@ -190,5 +190,6 @@ ATGTGAACAGACTTTTTCTTGTCATTATTTCCTAAACAATACAGTATAACAACTATTTACATTGT
 ATTAGGTATGATAAGTAATCTAGAGATAATTTAAAGTATATGGTGGGCG{{GATC}}CCAGCTACTCAG
 GAGACTGAGGC[TGGAGAATCGCTTGAACCCAACAGGCGGAGGGTTGCAGTGAGTCGA{{GATC}}GCAC
 CACTGCACCCCAGCCTGGGCGAC]AGCGAGACTCCGTCTCAAAAAAATAAATAAATAAAAATTAAA
-ACAATTAAAAAAATAAAATTACAAATGGAAAG)GACAAACCAGACCTTACAACTG
+ACAATTAAAAAAATAAAATTACAAATGGAAAG(GACAAACCAGACCTTACAACTG
 #+end_example
+
