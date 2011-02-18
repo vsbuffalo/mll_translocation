@@ -4,6 +4,13 @@
 #+date: <2011-02-16 Wed>
 #+babel: :results output :exports both :comments no :session
 
+* SAM mapping output
+
+** PvuII
+
+The breakage point must be between primer and PvuII, or else the PvuII
+would digest the circularized fragment before PCR.
+
 * Finding split paired-end reads with =ss.py=
 
 =ss.py= first gathers all paired-end reads in the dataset in a hash by
@@ -21,6 +28,9 @@ distance. For illumina short-insert libraries, the distance is about 6
 sigma of the insert size distribution. The exact boundaries are
 outputted in the stderr of sampe.
 #+end_quote
+
+
+** TODO Verify the order of chromosomes in =ss.py=. 
 
 ** Verification of =ss.py= output
 
@@ -44,11 +54,21 @@ The filename indicates =chr6= is the first. The corresponding sequence
 
 #+srcname: most-common-paired-end-splits
 #+begin_src sh +n :export both
-wc -l CAGTACT-out/* | sort | tail -n 10
+wc -l CAGTACT-out/* | sort | tail -n 20
 #+end_src
 
 #+results: most-common-paired-end-splits
 #+begin_example
+     217 CAGTACT-out/CAGTACT-chr11-chr20.txt
+     232 CAGTACT-out/CAGTACT-chr3-chr21.txt
+     243 CAGTACT-out/CAGTACT-chr11-chr15.txt
+     285 CAGTACT-out/CAGTACT-chr11-chr10.txt
+     297 CAGTACT-out/CAGTACT-chr11-chr8.txt
+     302 CAGTACT-out/CAGTACT-chr11-chr14.txt
+     330 CAGTACT-out/CAGTACT-chr11-chr17.txt
+     338 CAGTACT-out/CAGTACT-chr12-chr11.txt
+     365 CAGTACT-out/CAGTACT-chr11-chrX.txt
+     425 CAGTACT-out/CAGTACT-chr1-chr21.txt
      487 CAGTACT-out/CAGTACT-chr11-chr4.txt
      522 CAGTACT-out/CAGTACT-chr11-chr3.txt
      636 CAGTACT-out/CAGTACT-chr7-chr11.txt
@@ -93,9 +113,9 @@ most reads.
   lengths <- unlist(lapply(data, nrow))
   group.with.most.reads <- names(data)[which(max(lengths) == lengths)]
 
-  d <- data[[group.with.most.reads]]
-  #d <- data[['CAGTACT-chr11-chr2']]
-  d <- d[d$read1 == 'chr11',]
+  #d <- data[[group.with.most.reads]]
+  d <- data[['CAGTACT-chr11-chr9']]
+  #d <- d[d$read1 == 'chr11',]
 #+end_src
 
 #+results:
@@ -137,8 +157,10 @@ Most reads are not in the region of interest. Where are they? Is the region of i
 #+end_src
 
 #+results:
-:  (1.1835e+08,1.1836e+08] 
-:                    1240
+:  Error in cut(d$pos.chr11, ncuts) : object 'd' not found
+: Error in table(counts.by.pos) : object 'counts.by.pos' not found
+: Error in format(unclass(x), digits = digits, justify = justify) : 
+:   object 'tmp' not found
 
 
 Now we have a new candidate region of interest. Where in this region
@@ -154,7 +176,7 @@ are the most 5'-ends of mapped reads?
 #+results:
 [[file:results/region-hist.png]]
 
-What is the mode of this plot?
+What is the mode of the *candidate region*?
 
 #+begin_src R +n :tangle R/example-analysis.R
   # find mode
@@ -172,7 +194,7 @@ print(as.character(d$seq.chr11[d$pos.chr11 == pos.mode][1]))
 #+end_src
 
 #+results:
-: [1] "GAGGCGGAGGTTGCAGTGAGTCGAGATCGCACCACTGCACCCCAGCCTGGGCGACAGCGAGACTCCGTCTCAAAAAAA"
+: [1] "ATGGTTGCTTATGTTTTTCTACATATTATTTGACATACTTCTGTCTT"
 
 Where does this sequence reside in the unrearranged MLL template?
 There are some mismatches, but the region is show with =[= and =]=
@@ -188,8 +210,16 @@ CTACAAAGGTACAAAACTTGGTAATAGAACTACAGCTGGGCCTCTGTATCAGTGGGTTCTGTATC
 CCTGGACTCAACCAACCTTGGATTGAATGTATCTGGGAAAAAATGAGTAGTTGCCTCTGTACTCT
 ATGTGAACAGACTTTTTCTTGTCATTATTTCCTAAACAATACAGTATAACAACTATTTACATTGT
 ATTAGGTATGATAAGTAATCTAGAGATAATTTAAAGTATATGGTGGGCG{{GATC}}CCAGCTACTCAG
-GAGACTGAGGC[TGGAGAATCGCTTGAACCCAACAGGCGGAGGGTTGCAGTGAGTCGA{{GATC}}GCAC
-CACTGCACCCCAGCCTGGGCGAC]AGCGAGACTCCGTCTCAAAAAAATAAATAAATAAAAATTAAA
+GAGACTGAGGCTGGAGAATCGCTTGAACCCAACAGGCGGAGGGTTGCAGTGAGTCGA{{GATC}}GCAC
+CACTGCACCCCAGCCTGGGCGACAGCGAGACTCCGTCTCAAAAAAATAAATAAATAAAAATTAAA
 ACAATTAAAAAAATAAAATTACAAATGGAAAG(GACAAACCAGACCTTACAACTG
 #+end_example
+
+* Next steps
+
+1. Subset all SAM entries by those with a forward-mapped chr11
+   read end (don't worry about non-chr11 rearrangements).
+2. For each of these other chromosomes, find entries in which mapped
+   read is in the non-chr11 location. Gather these into a file.
+3. Maybe map these using BWA's long-read aligner.
 

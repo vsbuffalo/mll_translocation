@@ -12,20 +12,24 @@ class MappedPairs(object):
     """
 
     def __init__(self, filename):
-        mode = "r"
+        self.mode = "r"
         self.filename = filename
         self.basename = filename.split('.')[0]
         
         if filename.split('.')[1] == "bam":
-            mode = "rb"
-        self.samfile = pysam.Samfile(filename, mode)
-        self.paired = 0
+            self.mode = "rb"
+        self.samfile = pysam.Samfile(filename, self.mode)
+        self.mapped = 0
         self.total = 0
         self.unmapped = 0
         self.pairs = dict()
         
     def paired_add(self, read):
-        """        
+        """
+        Add a read to a dictionary by searching if the sequence header
+        name has been inserted in the dictionary already. This gathers
+        the pairs together.
+        
         Note that this uses "rname", which is depricated. Pysam-0.4
         requires "tid" to be used instead.
         """
@@ -39,20 +43,63 @@ class MappedPairs(object):
                     
     def gather_pairs(self):
         """
-        Iterate through all SAM file reads and join paired end reads
-        by their read name. 
+        Iterate through all SAM file reads and add files to a
+        dictionary with their sequence header name as key.
         """
         for read in self.samfile:
             self.total += 1
             if not read.is_unmapped:
                 if not read.is_paired:
-                    raise Exception, "Unpaired read found in dataset"
+                    sys.exit()
 
-                self.paired += 1
+                self.mapped += 1
                 self.paired_add(read)              
             else:
                 self.unmapped += 1
+        
 
+    def gather_unmapped_ends(self, outdir=None):
+        """
+        Gather and output reads that have one side that mapped and
+        another end that isn't mapped. These are candidates for the
+        unmapped read containing the breakpoint and part of the
+        translocated chromosome.
+        """
+        if outdir is None:
+            outdir = self.basename + "-out"
+        if not os.path.exists(outdir):
+            os.mkdir(outdir)
+
+        # First, build up a hash of all reads with the key being
+        # qname. If a read exists and is mapped, (and the current read
+        # during the iteration is likewise so), pop the existing and
+        # don't add the current read.
+        self.pairs_one_unmapped = dict()
+        self.samfile = pysam.Samfile(self.filename, self.mode)
+        for read in self.samfile:
+            qname = self.samfile.getrname(read.rname)
+            in_sample = self.pairs_one_unmapped.get(qname, False)
+
+            if not in_sample:
+                self.pairs_one_unmapped[qname] = [read]
+            else:
+                # If both reads are mapped, pop this off.
+                if len(set([in_sample.is_unmapped, read.is_unmapped])) == 1:
+                    self.pairs_one_unmapped.pop(qname)
+                else:
+                    self.pairs_one_unmapped[qname].append(read)
+
+        # Now, output to file
+        with open(os.path.join(outdir, self.basename + '-singles.txt'), 'w') as f:
+            for qname, readset in self.pairs_one_unmapped.items():
+                unmapped = [i for r, i in enumerate(readset) if r.is_unmapped]
+                mapped = [i for r, i in enumerate(readset) if not r.is_unmapped]
+                reads = [readset[unmapped], readset[mapped]]
+                f.write("%s\t%s\t%s\t%s\t%s\t%s\n" % (reads[0].rname,
+                                                      reads[0].seq, reads[0].pos, 
+                                                      reads[1].rname,
+                                                      reads[1].seq, reads[1].pos))
+        
     def find_odd_pairs(self):
         """
         Given all pairs in a file, find the ones that mapped to
@@ -77,7 +124,7 @@ class MappedPairs(object):
         if basename is None:
             basename = self.basename
         if outdir is None:
-            outdir = basename + "-out"            
+            outdir = basename + "-out"
         
         self.grouped_odd_pairs = dict()
         for qname in self.odd_pairs:
@@ -98,10 +145,11 @@ class MappedPairs(object):
                     os.mkdir(outdir)
             with open(filename, 'w') as f:
                 for readname, readset in self.grouped_odd_pairs[key].items():
-                    which_read1 = [self.samfile.getrname(r.rname) for r in readset if r.is_read1][0]
-                    f.write("%s\t%s\t%s\t%s\t%s\t%s\n" % (readname, readset[0].seq,
-                                                          readset[1].seq, readset[0].pos,
-                                                          readset[1].pos, which_read1))
+                    strands = [("forward", "reverse")[int(r.is_reverse)] for r in readset]                                    
+                    f.write("%s\t%s\t%s\t%s\t%s\t%s\t%s\n" % (readname,
+                                                          readset[0].seq, readset[1].seq,
+                                                          readset[0].pos, readset[1].pos,
+                                                          strands[0], strands[1]))
                     
 
 if __name__ == "__main__":
@@ -126,6 +174,8 @@ if __name__ == "__main__":
     m.find_odd_pairs()
     m.output_pairs(outdir=options.dir)
 
+    m.gather_unmapped_ends()
+
     # for qname in m.odd_pairs:
     #     locations = m.odd_pairs[qname].keys()
     #     sys.stdout.write("%s\t%s\t%s\t%s\n" % (qname, '\t'.join(locations),
@@ -135,5 +185,5 @@ if __name__ == "__main__":
     # Write statistics about file
     basename = args[0].split('.')[0]
     with open(basename + "_stats.txt", 'w') as f:
-        f.write("total: %d\nunmapped: %d\npaired: %d\nodd pairs: %d\n" 
-                % (m.total, m.unmapped, m.paired, len(m.odd_pairs)))
+        f.write("total: %d\nunmapped: %d\mapped: %d\nodd pairs: %d\n" 
+                % (m.total, m.unmapped, m.mapped, len(m.odd_pairs)))
