@@ -4,6 +4,7 @@ import sys
 import os
 import pysam
 from optparse import OptionParser
+import pdb
 
 class MappedPairs(object):
     """
@@ -77,27 +78,27 @@ class MappedPairs(object):
         self.pairs_one_unmapped = dict()
         self.samfile = pysam.Samfile(self.filename, self.mode)
         for read in self.samfile:
-            qname = self.samfile.getrname(read.rname)
-            in_sample = self.pairs_one_unmapped.get(qname, False)
-
-            if not in_sample:
-                self.pairs_one_unmapped[qname] = [read]
-            else:
+            in_sample = self.pairs_one_unmapped.get(read.qname, False)
+            if in_sample:
+                assert(len(in_sample) == 1)
                 # If both reads are mapped, pop this off.
-                if len(set([in_sample.is_unmapped, read.is_unmapped])) == 1:
-                    self.pairs_one_unmapped.pop(qname)
+                if in_sample[0].is_unmapped != read.is_unmapped:
+                    self.pairs_one_unmapped[read.qname].append(read)
                 else:
-                    self.pairs_one_unmapped[qname].append(read)
+                    self.pairs_one_unmapped.pop(read.qname)
+            else:
+                self.pairs_one_unmapped[read.qname] = [read]
 
         # Now, output to file
         with open(os.path.join(outdir, self.basename + '-singles.txt'), 'w') as f:
             for qname, readset in self.pairs_one_unmapped.items():
-                unmapped = [i for r, i in enumerate(readset) if r.is_unmapped]
-                mapped = [i for r, i in enumerate(readset) if not r.is_unmapped]
+                #pdb.set_trace()                                
+                unmapped = [i for i, r in enumerate(readset) if r.is_unmapped][0]
+                mapped = [i for i, r in enumerate(readset) if not r.is_unmapped][0]
                 reads = [readset[unmapped], readset[mapped]]
-                f.write("%s\t%s\t%s\t%s\t%s\t%s\n" % (reads[0].rname,
+                f.write("%s\t%s\t%s\t%s\t%s\t%s\n" % (qname,
                                                       reads[0].seq, reads[0].pos, 
-                                                      reads[1].rname,
+                                                      self.samfile.getrname(reads[1].rname),
                                                       reads[1].seq, reads[1].pos))
         
     def find_odd_pairs(self):
@@ -170,9 +171,9 @@ if __name__ == "__main__":
     # chromosomes), and output pairs grouped by chromosome combination
     # to files.
     m = MappedPairs(args[0])
-    m.gather_pairs()
-    m.find_odd_pairs()
-    m.output_pairs(outdir=options.dir)
+    # m.gather_pairs()
+    # m.find_odd_pairs()
+    # m.output_pairs(outdir=options.dir)
 
     m.gather_unmapped_ends()
 
