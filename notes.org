@@ -11,6 +11,7 @@
 The breakage point must be between primer and PvuII, or else the PvuII
 would digest the circularized fragment before PCR.
 
+
 * Finding split paired-end reads with =ss.py=
 
 =ss.py= first gathers all paired-end reads in the dataset in a hash by
@@ -215,6 +216,7 @@ CACTGCACCCCAGCCTGGGCGACAGCGAGACTCCGTCTCAAAAAAATAAATAAATAAAAATTAAA
 ACAATTAAAAAAATAAAATTACAAATGGAAAGGACAAACCAGACCTTACAACTG
 #+end_example
 
+
 * Next steps
 
 1. Subset all SAM entries by those with a forward-mapped chr11
@@ -248,4 +250,7 @@ ACAATTAAAAAAATAAAATTACAAATGGAAAGGACAAACCAGACCTTACAACTG
 :  1459  3858  5004  5962  8094  8153  8235  9891 10739 11052 11070 11203 13490 
 : chr12  chr5 chr10  chr3  chr6  chr7  chr4  chr9  chr2  chr1 chr11 
 : 13693 13990 14385 15365 17203 17771 18454 19304 27637 28724 50864
+
+
+
 

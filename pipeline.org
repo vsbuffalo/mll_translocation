@@ -1,0 +1,74 @@
+#+title: MLL translocation Pipeline
+#+author: Vince Buffalo
+#+email: vsbuffalo@ucdavis.edu
+#+date: <2011-02-19 Sat>
+#+babel: :results output :exports both :session :comments org
+
+* Approach to finding candidate translocation partners and fusion sites
+
+The basic approach generates *candidate* rearrangements, which should
+be verified by mapping reads to the rearrangments.
+
+** Input
+   Quality-processed paired-end reads mapped to entire human genome,
+   in SAM format (i.e. =BARCODE.sam=).
+
+** =find-odd-mate.py= to extract
+   This outputs the following:
+   - Files (in a directory) of all paired-end reads with mates that
+     mapped to different locations/chromosomes. These are (by
+     default) output in the directory =BARCODE-out/=. Each file has a
+     name in the format =BARCODE-chrA-chrB.txt= with =chrA= and
+     =chrB= being the first and second location of the mapped
+     reads. Recall that =find-odd-mate.py= only outputs reads when
+     these are different. The column structure of file
+     =BARCODE-chrA-chrB.txt= is:
+
+| Column # | Description                        | Example                         |
+|----------+------------------------------------+---------------------------------|
+|        1 | read name                          | =SOLEXA2_1222:2:46:9720:7897#0= |
+|        2 | first location's sequence          | =TAAGA...TCTAT=                 |
+|        3 | second location's sequence         | =GGAGT...GGAAT=                 |
+|        4 | first locations's mapping position | =118359253=                     |
+|        5 | second location's mapping position | =99214100=                      |
+|        6 | first locations's mapping strand   | =forward=                       |
+|        7 | second location's mapping strand   | =reverse=                       |
+
+   - A single file of all reads that have one mapped mate, but
+     another unmapped mate. These are by default in =BARCODE-out/=
+     too, with the filename format =BARCODE-singles.txt=. The column
+     structure of this file is:
+
+| Column # | Description                 | Example                           |
+|----------+-----------------------------+-----------------------------------|
+|        1 | read name                   | =SOLEXA2_1222:2:104:14004:6707#0= |
+|        2 | unmapped sequence           | =CATCT..AGAGTA=                   |
+|        3 | unmapped position (ignore!) |                                   |
+|        4 | mapped sequence             | =GGTGCA...TCTCAA=                 |
+|        5 | mapped position             | =74150105=                        |
+
+   - Statistics about total, mapped, unmapped, reverse, and unpaired
+     reads to stdout.
+   - TODO add support for paired-end reads with both mates mapping to
+     same location/chromosome, as this can increase confidence in
+     some rearrangement pairs.
+
+** TODO Gather statistics on rearrangements
+   Gather statistics on rearrangement partners by looking at lines in
+   each file =BARCODE-out/= (other than =BARCODE-singles.txt=).
+
+** Map =BARCODE-singles.txt= file using =BWA bwasw=
+
+   =BARCODE-singles.txt= contains a list of *all* paired-end reads
+   from *all* locations in which one mate mapped, but the other
+   didn't. First, we seperate this file into many FASTA files by
+   mapped mate chromosomes. Each of these FASTA files is then mapped
+   using =BWA bwasw= against the MLL template. The output of the
+   mappings (a SAM file) is then processed using =find-split.py=.
+
+   The help script =divide-singles.py= is used to convert the
+   =BARCODE-singles.txt= file to seperate FASTA files for each mapped
+   mate's location.
+
+** Use =find-split.py= to generate candidate fusion sites from mapping results.
+   
