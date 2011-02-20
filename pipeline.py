@@ -21,9 +21,12 @@ if __name__ == "__main__":
     (options, args) = parser.parse_args()
 
     output_dir = "output"
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
+    
     N = 6
     mll_template = "mll.fasta"
-    if not os.path.exist(mll_template):
+    if not os.path.exists(mll_template):
         parser.error("Could not MLL template file '%s'" % mll_template)
 
     if len(args) != 1:
@@ -57,14 +60,16 @@ if __name__ == "__main__":
     
     stdout_value = proc.communicate()[0]
     rearrangements = list()
-    with open("%s/%s-rearrangement-counts.txt", 'w') as f:
+    with open("%s/%s-rearrangement-counts.txt" % (output_dir, basename), 'w') as f:
         for line in stdout_value.split('\n'):
             line = line.strip()
+            if len(line) == 0:
+                continue
             count, fn = re.split(r' +', line)
             chunks = re.split('[-\.]', fn)
             loc = '-'.join(chunks[4:6])
-            rearrangement.append(loc)
-            f.write("%s\t%s\n" % loc, count)
+            rearrangements.append(loc)
+            f.write("%s\t%s\n" % (loc, count))
 
     top_candidates = rearrangements[:N]
 
