@@ -23,6 +23,7 @@ class MappedPairs(object):
         self.mapped = 0
         self.total = 0
         self.unmapped = 0
+        self.reverse_mapped = 0
         self.pairs = dict()
         
     def paired_add(self, read):
@@ -153,6 +154,47 @@ class MappedPairs(object):
                                                           strands[0], strands[1]))
                     
 
+    def extract_forward_split_matches(self, outdir=None):
+        """
+        Given a SAM file, gather all forward matches that have a xMyS
+        format, indicating that the match has been cut by BW
+        bwasw. The position of these and the forward and ending
+        sequences are sent to a file.
+        """
+        self.tossed = 0
+        if outdir is None:
+            outdir = self.basename + "-out"
+        if not os.path.exists(outdir):
+            os.mkdir(outdir)
+
+        with open(self.basename + "-split-unmapped.txt", 'w') as f:
+            for read in self.samfile:
+                if read.is_unmapped:
+                    self.unmapped += 1
+                    continue
+
+                # only handle CIGAR entries with length two (i.e. xM yS)
+                if len(read.cigar) != 2:
+                    continue
+                e1, e2 = read.cigar
+                if not read.is_reverse:
+                    if e1[0] == 0 and e2[0] == 4:
+                        matched = read.seq[:e1[1]]
+                        cut = read.seq[e1[1]:]
+                        break_pos = read.pos + e1[1]
+                        f.write("%s\t%s\t%s\t%s\tforward\n" % (read.qname, break_pos,
+                                                               matched, cut))
+                    else:
+                        self.tossed += 1
+                else:
+                    self.reverse_mapped += 1
+                    self.tossed += 1
+
+        print "unmapped: %s\ntossed: %s\nreverse: %s\n" % (self.unmapped,
+                                                           self.tossed,
+                                                           self.reverse_mapped)
+
+
 if __name__ == "__main__":
     parser = OptionParser()
     parser.add_option("-d", "--dir", dest="dir",
@@ -160,31 +202,32 @@ if __name__ == "__main__":
                       default=None)
     (options, args) = parser.parse_args()
 
-    if len(args) < 1:
-        parser.error("Supply a SAM or BAM file argument.")
-        if not os.path.exist(args[0]):
-            parser.error("File '%s'does not exist." % args[0])
+    if len(args) < 2:
+        parser.error("Not enough arguments.")
+        if not os.path.exist(args[1]):
+            parser.error("File '%s'does not exist." % args[1])
     elif len(args) > 2:
         parser.error("Too many arguments supplied; specify a single SAM or BAM file.")    
 
-    # Gather all paired ends, find the odd pairs (on different
-    # chromosomes), and output pairs grouped by chromosome combination
-    # to files.
-    m = MappedPairs(args[0])
-    # m.gather_pairs()
-    # m.find_odd_pairs()
-    # m.output_pairs(outdir=options.dir)
+    if args[0] == 'findpairs':
+        # Gather all paired ends, find the odd pairs (on different
+        # chromosomes), and output pairs grouped by chromosome combination
+        # to files.
+        m = MappedPairs(args[1])
+        m.gather_pairs()
+        m.find_odd_pairs()
+        m.output_pairs(outdir=options.dir)
+        
+        m.gather_unmapped_ends()
 
-    m.gather_unmapped_ends()
+        # Write statistics about file
+        basename = args[1].split('.')[0]
+        with open(basename + "_stats.txt", 'w') as f:
+            f.write("total: %d\nunmapped: %d\mapped: %d\nodd pairs: %d\n" 
+                    % (m.total, m.unmapped, m.mapped, len(m.odd_pairs)))
 
-    # for qname in m.odd_pairs:
-    #     locations = m.odd_pairs[qname].keys()
-    #     sys.stdout.write("%s\t%s\t%s\t%s\n" % (qname, '\t'.join(locations),
-    #                                            m.odd_pairs[qname][locations[0]].seq,
-    #                                            m.odd_pairs[qname][locations[1]].seq))
-
-    # Write statistics about file
-    basename = args[0].split('.')[0]
-    with open(basename + "_stats.txt", 'w') as f:
-        f.write("total: %d\nunmapped: %d\mapped: %d\nodd pairs: %d\n" 
-                % (m.total, m.unmapped, m.mapped, len(m.odd_pairs)))
+    elif args[0] == 'findsplit':
+       m = MappedPairs(args[1])
+       m.extract_forward_split_matches(outdir=options.dir)
+    else:
+        parser.error("Unknown subcommand '%s'." % args[0])
