@@ -1,7 +1,7 @@
 """
-find-odd-mates.py
+find-split-mates.py
 
-find-odd-mates.py takes a SAM file from a paired-end mapping (only
+find-split-mates.py takes a SAM file from a paired-end mapping (only
 tested with BWA), and returns:
 
  - files (in a directory) of all paired-end reads with mates that
@@ -117,10 +117,13 @@ class PairedReads(object):
                 unmapped = [i for i, r in enumerate(readset) if r.is_unmapped][0]
                 mapped = [i for i, r in enumerate(readset) if not r.is_unmapped][0]
                 reads = [readset[unmapped], readset[mapped]]
-                f.write("%s\t%s\t%s\t%s\t%s\t%s\n" % (qname,
-                                                      reads[0].seq, reads[0].pos, 
-                                                      self.samfile.getrname(reads[1].rname),
-                                                      reads[1].seq, reads[1].pos))
+                format_line = "%s\t" * 8 + "\n"
+                f.write(format_line % (qname,
+                                       reads[0].seq, reads[0].pos,
+                                       reads[0].mapq,
+                                       self.samfile.getrname(reads[1].rname),
+                                       reads[1].seq, reads[1].pos,
+                                       reads[1].mapq))
         
     def find_odd_pairs(self):
         """
@@ -162,11 +165,13 @@ class PairedReads(object):
                     os.mkdir(outdir)
             with open(filename, 'w') as f:
                 for readname, readset in self.grouped_odd_pairs[key].items():
-                    strands = [("forward", "reverse")[int(r.is_reverse)] for r in readset]                                    
-                    f.write("%s\t%s\t%s\t%s\t%s\t%s\t%s\n" % (readname,
-                                                          readset[0].seq, readset[1].seq,
-                                                          readset[0].pos, readset[1].pos,
-                                                          strands[0], strands[1]))
+                    strands = [("forward", "reverse")[int(r.is_reverse)] for r in readset]
+                    format_line = "%s\t" * 9 + "\n"
+                    f.write(format_line % (readname,
+                                           readset[0].seq, readset[1].seq,
+                                           readset[0].pos, readset[1].pos,
+                                           strands[0], strands[1],
+                                           readset[0].mapq, readset[1].mapq))
 
     
 if __name__ == "__main__":

@@ -15,7 +15,7 @@ import subprocess
 from optparse import OptionParser
 import logging
 
-import find_odd_mates
+import find_split_mates as fsm
 
 LEVELS = {'debug': logging.DEBUG,
           'info': logging.INFO,
@@ -68,7 +68,7 @@ def find_split_mates(samfile, outdir, no_unmapped=False):
     Wrapper for finding split-mates sub-pipeline.
     """
     logging.info("Finding split-mates...")
-    m = find_odd_mates.PairedReads(samfile)
+    m = fsm.PairedReads(samfile)
     m.gather_pairs()
     m.find_odd_pairs()
     logging.info("Writing split-mates files...")
@@ -124,8 +124,7 @@ if __name__ == "__main__":
     ## locations, and reads in which one mate mapped, but another didn't.
     split_mates_dir = check_dir("split-mates", output_dir)
 
-    if False:
-        find_split_mates(args[0], split_mates_dir)
+    find_split_mates(args[0], split_mates_dir)
 
     ## Part 2: Run Samtools to find reliable mappings, to get clearer
     ## picture of reads mapped to different chromosomes (_not_ the
