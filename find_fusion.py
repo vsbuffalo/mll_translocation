@@ -29,6 +29,7 @@ def extract_fusion_candidates(filename, outdir):
     reverse = 0
     total = 0
     correct = 0
+    mapped = 0
     basename = filename.split('.')[0]
     with open(basename + "-fusion-candidates.txt", 'w') as f:
         for read in pysam.Samfile(filename):
@@ -43,6 +44,7 @@ def extract_fusion_candidates(filename, outdir):
                 continue
 
             e1, e2 = read.cigar
+            strand = ('forward', 'reverse')[read.is_reverse]
             if not read.is_reverse:
                 # note: 0 is M, 4 is S
                 if e1[0] == 0 and e2[0] == 4:
@@ -50,10 +52,18 @@ def extract_fusion_candidates(filename, outdir):
                     cut = read.seq[e1[1]:]
                     break_pos = read.pos + e1[1]
                     correct += 1
-                    f.write("%s\t%s\t%s\t%s\n" % (read.qname, break_pos, matched, cut))
+                    f.write("%s\t%s\t%s\t%s\t%s\t%s\n" % (read.qname, break_pos,
+                                                          matched, cut, strand, read.mapq))
                 else:
                     not_xMyS += 1
             else:
+                if e1[0] == 0 and e2[0] == 4:
+                    matched = read.seq[:e1[1]]
+                    cut = read.seq[e1[1]:]
+                    break_pos = read.pos + e1[1]
+                    correct += 1
+                    f.write("%s\t%s\t%s\t%s\t%s\t%s\n" % (read.qname, break_pos,
+                                                          matched, cut, strand, read.mapq))
                 reverse += 1
     return {'unmapped':unmapped,
             'mapped':mapped,
