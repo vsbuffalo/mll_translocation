@@ -89,6 +89,8 @@ if __name__ == "__main__":
     (options, args) = parser.parse_args()
 
     ### Setup ###
+    # Number of rearrangements to consider
+    N = 4
     
     if len(args) != 1:
         parser.error("Incorrect number of arguments supplied.")
@@ -149,4 +151,13 @@ if __name__ == "__main__":
     qra_file = get_rearrangements(reliable_split_dir, stats_dir,
                                   "reliable-rearrangement-counts.txt")
 
+    ## Part 3: In "reliable" split-mapped (with chr11) reads, extract positions.
+    rearrangements = dict()
+    with open(qra_file) as f:
+        for line in f:
+            line = line.strip()
+            ra, count = line.split('\t')
+            rearrangements[ra] = count
+
+    
     
