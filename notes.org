@@ -252,5 +252,12 @@ ACAATTAAAAAAATAAAATTACAAATGGAAAGGACAAACCAGACCTTACAACTG
 : 13693 13990 14385 15365 17203 17771 18454 19304 27637 28724 50864
 
 
+Note: for pipeline get acceptable places for chrA from chr11-chrA
+file, then extract *only* these positions from the singles file.
 
+
+Preprocess: samtools view -S -q1 CAGTACT.sam > CAGTACT-reliable.sam
+
+Chi-square test - is chr11 involved in more rearrangements than likely
+by chance?
 
