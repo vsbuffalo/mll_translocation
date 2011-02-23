@@ -202,9 +202,10 @@ for (i in 4:4) {
   
   tmp <- ds[ds$chr == ra.d$alt.chr[i], ]
   chralt.singles <- tmp[tmp$m.pos >= chralt.range['lower'] & tmp$m.pos <= chralt.range['upper'], ]
+  con <- file(sprintf("%s/%s-fusion-reads.fasta", fusion.read.dir, ra.d$alt.chr[i]), open='w')
   for (j in 1:nrow(chralt.singles)) {
     cat(sprintf(">%s\n%s\n", chralt.singles$name[j], chralt.singles$u.seq[j]),
-        file=(con <- file(sprintf("%s/%s-fusion-reads.fasta", fusion.read.dir, ra.d$alt.chr[i]), open='w')))
+        file=con)
   }
   close(con)
 }
