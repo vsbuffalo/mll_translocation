@@ -14,7 +14,14 @@ from optparse import OptionParser
 import pysam
 import os
 import sys
+from string import maketrans
+complement_table = maketrans("ATCGatcg", "TAGCtagc")
 
+def reverse_complement(seq):
+    """
+    Find the reverse complement of a sequence.
+    """
+    return seq.translate(complement_table)[::-1]
 
 class PairedReads(object):
     """
@@ -91,6 +98,11 @@ class PairedReads(object):
         another end that isn't mapped. These are candidates for the
         unmapped read containing the breakpoint and part of the
         translocated chromosome.
+
+        Note: unmapped entries' sequences can be in the SAM file as
+        reverse complements, so we need to check the bitflag to see if
+        they are, and possibly reverse complement the sequence *back*
+        to what it is in the original FASTA/FASTAQ file.
         """
         # First, build up a hash of all reads with the key being
         # qname. If a read exists and is mapped, (and the current read
@@ -110,16 +122,23 @@ class PairedReads(object):
             else:
                 self.pairs_one_unmapped[read.qname] = [read]
 
-        # Now, output to file
+        # Now output to file, reverse complementing unmapped reads
         with open(os.path.join(outdir, self.basename + '-singles.txt'), 'w') as f:
             for qname, readset in self.pairs_one_unmapped.items():
                 #pdb.set_trace()                                
                 unmapped = [i for i, r in enumerate(readset) if r.is_unmapped][0]
                 mapped = [i for i, r in enumerate(readset) if not r.is_unmapped][0]
                 reads = [readset[unmapped], readset[mapped]]
+
+                # reverse complement reads *back* if they are unmapped and reverse
+                if (reads[0].is_reverse):
+                    unmapped_seq = reverse_complement(reads[0].seq)
+                else:
+                    unmapped_seq = reads[0].seq
+                    
                 format_line = "%s\t" * 8 + "\n"
                 f.write(format_line % (qname,
-                                       reads[0].seq, reads[0].pos,
+                                       unmapped_seq, reads[0].pos,
                                        reads[0].mapq,
                                        self.samfile.getrname(reads[1].rname),
                                        reads[1].seq, reads[1].pos,

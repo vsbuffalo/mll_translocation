@@ -8,9 +8,11 @@ quality trimming and sequence adapter contaminant trimming.
 """
 
 import pysam
+import csv
 import os
 import sys
 import re
+import operator
 import subprocess
 from optparse import OptionParser
 import logging
@@ -22,6 +24,14 @@ LEVELS = {'debug': logging.DEBUG,
           'warning': logging.WARNING,
           'error': logging.ERROR,
           'critical': logging.CRITICAL}
+
+def median(x):
+    copy = sorted(x)
+    size = len(copy)
+    if size % 2 == 1:
+        return copy[(size - 1) / 2]
+    else:
+        return (copy[size/2 - 1] + copy[size/2]) / 2
 
 
 def check_dir(direc, parent=None):
@@ -77,14 +87,43 @@ def find_split_mates(samfile, outdir, no_unmapped=False):
         logging.info("Finding paired-end reads with one unmapped mate...")
         m.gather_unmapped_ends(outdir=outdir)
 
-    
+
+def check_in_path(tool):
+    """
+    Check that a tool is in $PATH, and that it can be called by
+    subprocess.call() called.
+    This will error out if the command is not in $PATH.
+    """
+    retcode = subprocess.call('which %s' % tool, shell=True)
+    logging.info("Checking '%s' exists." % tool)
+    if retcode != 0:
+        raise Exception, "%s not in $PATH; add it to $PATH and re-run." % tool
+    return True
+
+def check_bwa(ref):
+    """
+    Check BWA installation, check that ref is indexed.
+    """
+    check_in_path('bwa')
+    ref_files = os.listdir(os.path.dirname(ref))
+    index_extensions = "amb;;ann;;bwt;;pac;;rbwt;;rpac;;rsa;;sa"
+    ref_extensions = [f.split('.')[2] for f in ref_files if f.count('.') > 1]
+    logging.info("Checking reference '%s' is indexed by bwa." % ref)
+    if -1 in [index_extensions.find(f) for f in ref_extensions]:
+        raise Exception, ("Reference '%s' not indexed.\n"
+                          "One or more files with the following extensions is missing: %s\n" %
+                          (ref, ', '.join(index_extensions.split(';;'))))
 
 
 if __name__ == "__main__":
     parser = OptionParser()
     parser.add_option("-r", "--ref", dest="ref",
                       help="reference template (default: mll.fasta)",
-                      default="mll.fasta")
+                      default="mll_template/mll.fasta")
+    parser.add_option("-m", "--min-mqual", dest="mqual",
+                      help="minimum mapping quality for split mates (default: 30)",
+                      default=30)
+
 
     (options, args) = parser.parse_args()
 
@@ -115,6 +154,13 @@ if __name__ == "__main__":
     if not os.path.exists(options.ref):
         parser.error("Reference template FASTA file '%s' does not exist." % options.ref)
 
+    ## Check that BWA and reference is index
+    check_bwa(options.ref)
+
+    ## Check Samtools and Rscript
+    check_in_path('samtools')
+    check_in_path('Rscript')
+    
     ### Analysis ###
 
     ## Make stats directory
@@ -136,7 +182,7 @@ if __name__ == "__main__":
     # run samtools quality pruning on SAM file
     logging.info("Using Samtools to remove 0-mapping-quality reads in '%s'." % args[0])
     reliable_sam_file = basename + "-reliable.sam"
-    cmd = "samtools view -S -h -q1 %s > %s" % (args[0], reliable_sam_file)
+    cmd = "samtools view -S -h -q%s %s > %s" % (options.mqual, args[0], reliable_sam_file)
     logging.info("Running command: '%s'." % cmd)
     subprocess.call(cmd, shell=True)
 
@@ -150,13 +196,23 @@ if __name__ == "__main__":
     qra_file = get_rearrangements(reliable_split_dir, stats_dir,
                                   "reliable-rearrangement-counts.txt")
 
-    ## Part 3: In "reliable" split-mapped (with chr11) reads, extract positions.
-    rearrangements = dict()
-    with open(qra_file) as f:
-        for line in f:
-            line = line.strip()
-            ra, count = line.split('\t')
-            rearrangements[ra] = count
+    ## Part 3: Pick top rearrangement candidates to pursue, then call
+    ## R to do singles sub-sampling
 
+    # # top candidate selection
+    # reader = csv.reader(open(qra_file), delimiter='\t')
+    # cand_rearrangements = dict()
+    # for row in reader:
+    #     ra, count = row
+    #     cand_rearrangements[ra] = int(count)
+
+    # by_count = sorted(cand_rearrangements.iteritems(), key=operator.itemgetter(1), reverse=True)
     
     
+        
+    # singles_file = os.path.join(outdir, 'fusion-reads', basename + '-singles.txt')
+    # subprocess.Call('Rscript split_stats.R %s' % singles_file, shell=True)
+
+
+    # ## Part 4: BWA mapping of unampped mates
+    # subprocess.Call()
