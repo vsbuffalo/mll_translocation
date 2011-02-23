@@ -47,11 +47,15 @@ def check_dir(direc, parent=None):
         logging.info("Directory '%s' exists, rewriting old files!" % direc)
     return direc
 
-def get_rearrangements(splitdir, statsdir, filename):
+def get_rearrangements(splitdir, statsdir, filename, inverse=False):
     """
     Gather rearrangements files involving chr11 from wc -l output.
+    If invert is true, get non-chr11 match.
     """
-    cmd = "wc -l %s/* | grep chr11 | sort -rn" % splitdir
+    if not inverse:
+        cmd = "wc -l %s/* | grep chr11 | sort -rn" % splitdir
+    else:
+        cmd = "wc -l %s/* | grep --invert-match chr11 | grep chr | sort -rn" % splitdir
     
     proc = subprocess.Popen(cmd,
                             shell=True,
@@ -195,6 +199,10 @@ if __name__ == "__main__":
     # Re-running finding split-mate pipeline on quality-pruned data
     qra_file = get_rearrangements(reliable_split_dir, stats_dir,
                                   "reliable-rearrangement-counts.txt")
+
+    qra_file_others = get_rearrangements(reliable_split_dir, stats_dir,
+                                         "reliable-all-rearrangement-counts.txt", inverse=True)
+
 
     ## Part 3: Pick top rearrangement candidates to pursue, then call
     ## R to do singles sub-sampling

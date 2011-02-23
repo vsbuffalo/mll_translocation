@@ -126,9 +126,15 @@ findRegions =
 # translocation candidate regions.
 #
 # Side effects: produces plots.
-function(d, chr.name) {
+function(d, chr.name, alt=NULL) {
   pos.colname <- sprintf("pos.%s", chr.name)
   chr.num <- gsub('chr(\\d+)', '\\1', chr.name)
+
+  # Chr11 will be overwritten; so we pass in alt for special naming
+  if (!is.null(alt))
+    special <- sprintf("%s-%s", chr.num, alt)
+  else
+    special <- chr.num  
   
   ## Largest possible range histogram
   p <- ggplot(d, aes_string(x=pos.colname))
@@ -137,7 +143,7 @@ function(d, chr.name) {
   p <- p + ylab(sprintf("count of mates mapped\n(mapping quality > %s)", min.mqual))
   p <- p + opts(title=sprintf("Distribution of reads mapped in chromosome %s", chr.num))
   output({
-    print(p)}, file=paste(stats.dir, paste("positions-chr", chr.num, ".png", sep=''), sep='/'))
+    print(p)}, file=paste(stats.dir, paste("positions-chr", special, ".png", sep=''), sep='/'))
 
   ## Do binning
   width.par <- 100
@@ -152,7 +158,7 @@ function(d, chr.name) {
   p <- p + ylab(sprintf("count of mates mapped\n(mapping quality > %s)", min.mqual))
   p <- p + opts(title=sprintf("Distribution of reads mapped in chromosome %s, after selection", chr.num))
   output({
-    print(p)}, file=paste(stats.dir, paste("selected-positions-chr", chr.num, ".png", sep=''), sep='/'))
+    print(p)}, file=paste(stats.dir, paste("selected-positions-chr", special, ".png", sep=''), sep='/'))
   
   return(list(data=d, data.peak=d.peak, peak.range=peak.range))
 }
@@ -162,9 +168,23 @@ function(d, chr.name) {
 split.mate.classes <- c('character', 'character', 'character', 'integer',
                         'integer', 'factor', 'factor', 'integer', 'integer')
 
+## Load Singles File
+fusion.read.dir <- paste(outdir, "fusion-reads", sep='/')
+if (!file.exists(fusion.read.dir))
+  system(sprintf("mkdir %s", fusion.read.dir))
+
+singles.file <- paste(outdir, "split-mates", sprintf("%s-singles.txt", basename), sep='/')
+
+ds <- read.csv(singles.file, header=FALSE, sep='\t',
+               colClasses=c('character', 'character', 'integer', 'integer',
+                 'factor', 'character', 'integer', 'integer'))
+colnames(ds) <- c('name', 'u.seq', 'u.pos', 'u.mqual', 'chr', 'm.seq', 'm.pos', 'm.mqual')
+
+ds <- ds[, -9]
+
 # For each of the top candidate rearrangements (now just top N), get
 # and output regions and histograms.
-for (i in 1:1) {
+for (i in 4:4) {
   chr.ra.name <- ra.d$rearrangement[i]
   cat(sprintf("Processing rearrangement: %s\n", chr.ra.name))
   split.file.dir <- paste(outdir, split.mates.dir, sprintf("%s-%s.txt", basename, chr.ra.name), sep='/')
@@ -175,6 +195,15 @@ for (i in 1:1) {
   colnames(d) <- c('name', paste(rep(c('seq', 'pos', 'strand', 'mqual'), each=2),
                                  c('chr11', ra.d$alt.chr[i]), sep='.'))
 
-  chr11.regions <- findRegions(d, 'chr11')
+  chr11.regions <- findRegions(d, 'chr11', alt=ra.d$alt.chr[i])
   chralt.regions <- findRegions(d, ra.d$alt.chr[i])
+  chralt.range <- chralt.regions$peak.range
+  
+  tmp <- ds[ds$chr == ra.d$alt.chr[i], ]
+  chralt.singles <- tmp[tmp$m.pos >= chralt.range['lower'] & tmp$m.pos <= chralt.range['upper'], ]
+  for (j in 1:nrow(chralt.singles)) {
+    cat(sprintf(">%s\n%s\n", chralt.singles$name[j], chralt.singles$u.seq[j]),
+        file=(con <- file(sprintf("%s/%s-fusion-reads.fasta", fusion.read.dir, ra.d$alt.chr[i]), open='w')))
+  }
+  close(con)
 }
