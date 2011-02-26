@@ -24,7 +24,7 @@ if (!exists('outdir'))
   outdir <- "CAGTACT-output"
 
 
-# Number of rearrangements to purse
+# Number of rearrangements to pursue
 N <- 4
 
 # Basename
@@ -151,19 +151,13 @@ function(d, chr.name, alt=NULL) {
   return(list(data=d, data.peak=d.peak, peak.range=peak.range))
 }
 
-# temporarily unbin data for histogram - a bit hacky.
-local({
-  tmp <- data.frame(chromosome=unlist(apply(ra.d, 1, function(x) rep(x[3], x[2]))))
-  # order chromosomes
-  tmp$chromosome <- factor(tmp$chromosome, levels=paste('chr', c(1:22, 'X', 'Y'), sep=''))
-  p <- ggplot(tmp, aes(x=chromosome))
-  p <- p + geom_histogram()
-  p <- p + opts(title="Rearrangement Candidates\n(counts could include fusion at restriction enzyme site)")
-  p <- p + ylab(sprintf("count of paired-end read mates mapped,\n(other mate in chromosome 11, mapping quality > %s)", min.mqual))
-  output({
-    print(p)}, file=paste(stats.dir, "rearrangement-counts.png", sep='/'))
-})
-
+p <- ggplot(ra.d, aes(x=alt.chr, y=count))
+p <- p + geom_histogram(stat="identity")
+p <- p + opts(title="Rearrangement Candidates\n(counts could include fusion at restriction enzyme site)")
+p <- p + xlab("chromosome")
+p <- p + ylab(sprintf("count of paired-end read mates mapped,\n(other mate in chromosome 11, mapping quality > %s)", min.mqual))
+output({
+  print(p)}, file=paste(stats.dir, "rearrangement-counts.png", sep='/'))
 
 ## Investigate each chromosome candidate
 split.mate.classes <- c('character', 'character', 'character', 'integer',
