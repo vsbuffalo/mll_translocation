@@ -1,6 +1,9 @@
 ## split_stats.R - Gather statistics about split-mate files; output
 ## candidate rearrangement subset.
 
+
+suppressMessages(require(ggplot2))
+
 if (!interactive()) {
   args <- commandArgs()
   arg.delim <- which(args == '--args') + 1
@@ -66,18 +69,18 @@ function(filename, outputdir=pathJoin(outdir,'fusion-reads')) {
                                  chromosomes, sep='.'))
 
   chralt <- chromosomes[chromosomes != 'chr11']
-  stats <- 
+  stats <- list()
   stats$chralt <- chralt
 
   ## Get strand counts
   chralt.strands <- table(d[, paste('strand', chralt, sep='.')])
-  stats$strands.chralt.forward <- chralt.strands['forward']
-  stats$strands.chralt.reverse <- chralt.strands['reverse']
+  stats$chralt.forward <- chralt.strands['forward']
+  stats$chralt.reverse <- chralt.strands['reverse']
 
 
   chr11.strands <- table(d$strand.chr11)
-  stats$strands.chr11.forward <- chr11.strands['forward']
-  stats$strands.chr11.reverse <- chr11.strands['reverse']
+  stats$chr11.forward <- chr11.strands['forward']
+  stats$chr11.reverse <- chr11.strands['reverse']
   ## stats$pos.chr11 <- d$pos.chr11
   ## stats$pos.chralt <- d[, paste('pos', chralt, sep='.')]
 
@@ -94,4 +97,6 @@ function(filename, outputdir=pathJoin(outdir,'fusion-reads')) {
 chr11.split.mates.files <- dir(pathJoin(outdir, split.mates.dir), pattern="chr11")
 a = lapply(chr11.split.mates.files, function(fn) processSplitMateFile(pathJoin(outdir, split.mates.dir, fn)))
 
-do.call(rbind, a)
+out.name <- sprintf("%s-candidate-summary.txt", unlist(strsplit(outdir, '-'))[1])
+write.table(do.call(rbind, a), file=out.name, quote=FALSE, row.names=FALSE, sep='\t')
+
