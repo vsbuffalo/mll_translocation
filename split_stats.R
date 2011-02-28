@@ -69,34 +69,48 @@ function(filename, outputdir=pathJoin(outdir,'fusion-reads')) {
                                  chromosomes, sep='.'))
 
   chralt <- chromosomes[chromosomes != 'chr11']
-  stats <- list()
-  stats$chralt <- chralt
+  strand.stats <- list()
+  pos.stats <- list()
+  pos.stats$chralt <- chralt
+  strand.stats$chralt <- chralt
 
   ## Get strand counts
   chralt.strands <- table(d[, paste('strand', chralt, sep='.')])
-  stats$chralt.forward <- chralt.strands['forward']
-  stats$chralt.reverse <- chralt.strands['reverse']
+  strand.stats$chralt.forward <- chralt.strands['forward']
+  strand.stats$chralt.reverse <- chralt.strands['reverse']
 
 
   chr11.strands <- table(d$strand.chr11)
-  stats$chr11.forward <- chr11.strands['forward']
-  stats$chr11.reverse <- chr11.strands['reverse']
-  ## stats$pos.chr11 <- d$pos.chr11
-  ## stats$pos.chralt <- d[, paste('pos', chralt, sep='.')]
+  strand.stats$chr11.forward <- chr11.strands['forward']
+  strand.stats$chr11.reverse <- chr11.strands['reverse']
+  pos.stats$name <- d$name
+  pos.stats$pos.chr11 <- d$pos.chr11
+  pos.stats$pos.chralt <- d[, paste('pos', chralt, sep='.')]
+  pos.stats$mqual.chr11 <- d$mqual.chr11
+  pos.stats$mqual.chralt <- d[, paste('mqual', chralt, sep='.')]
+  pos.stats$seq.chralt <- d[, paste('seq', chralt, sep='.')]
 
+
+  
   candidates <- subset(d, strand.chr11 == 'forward')
-  stats$num.candidates <- nrow(candidates)
+  strand.stats$num.candidates <- nrow(candidates)
   
   ## write.table(candidates,
   ##             file=pathJoin(outputdir, sprintf("%s-subset.txt", basename)),
   ##             quote=FALSE, row.names=FALSE, sep='\t')
 
-  return(stats)
+  return(list(strand.stats=strand.stats, pos.stats=pos.stats))
 }
 
 chr11.split.mates.files <- dir(pathJoin(outdir, split.mates.dir), pattern="chr11")
-a = lapply(chr11.split.mates.files, function(fn) processSplitMateFile(pathJoin(outdir, split.mates.dir, fn)))
+output = lapply(chr11.split.mates.files, function(fn) processSplitMateFile(pathJoin(outdir, split.mates.dir, fn)))
 
 out.name <- sprintf("%s-candidate-summary.txt", unlist(strsplit(outdir, '-'))[1])
-write.table(do.call(rbind, a), file=out.name, quote=FALSE, row.names=FALSE, sep='\t')
+
+# Output lists contain statistics for position and strand statistics -
+# unaggregate these.
+strand.stats <- lapply(output, function(x) x$strand.stats)
+pos.stats <- lapply(output, function(x) x$pos.stats)
+
+write.table(do.call(rbind, strand.stats), file=out.name, quote=FALSE, row.names=FALSE, sep='\t')
 
