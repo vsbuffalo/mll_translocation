@@ -204,23 +204,15 @@ if __name__ == "__main__":
                                          "reliable-all-rearrangement-counts.txt", inverse=True)
 
 
-    ## Part 3: Pick top rearrangement candidates to pursue, then call
-    ## R to do singles sub-sampling
+    ## Part 3: Take singles file; generate FASTA files of unmapped
+    ## mates by chromosome, map using BWA's bwasw.
+    subprocess.call("Rscript split_read_stats.R %s-output" % basename, shell=True)
 
-    # # top candidate selection
-    # reader = csv.reader(open(qra_file), delimiter='\t')
-    # cand_rearrangements = dict()
-    # for row in reader:
-    #     ra, count = row
-    #     cand_rearrangements[ra] = int(count)
-
-    # by_count = sorted(cand_rearrangements.iteritems(), key=operator.itemgetter(1), reverse=True)
-    
-    
-        
-    # singles_file = os.path.join(outdir, 'fusion-reads', basename + '-singles.txt')
-    # subprocess.Call('Rscript split_stats.R %s' % singles_file, shell=True)
-
-
-    # ## Part 4: BWA mapping of unampped mates
-    # subprocess.Call()
+    fusion_read_dir = os.path.join("%s-output" % basename, "fusion-reads")
+    for singles_fasta in os.listdir(fusion_read_dir):
+        mapping_dir = check_dir("fusion-read-alignments", output_dir)
+        chromosome = singles_fasta.split('-')[0]
+        mapping_file = os.path.join(mapping_dir, "%s.sam" % chromosome)
+        subprocess.call("bwa bwasw -T 10 -c 5 -t 3 %s %s > %s" % (options.ref,
+                                                                  os.path.join(fusion_read_dir, singles_fasta),
+                                                                  mapping_file), shell=True)

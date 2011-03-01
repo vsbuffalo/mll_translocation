@@ -123,7 +123,7 @@ class PairedReads(object):
                 self.pairs_one_unmapped[read.qname] = [read]
 
         # Now output to file, reverse complementing unmapped reads
-        with open(os.path.join(outdir, self.basename + '-singles.txt'), 'w') as f:
+        with open(os.path.join(outdir, 'singles.txt'), 'w') as f:
             for qname, readset in self.pairs_one_unmapped.items():
                 #pdb.set_trace()                                
                 unmapped = [i for i, r in enumerate(readset) if r.is_unmapped][0]
@@ -136,7 +136,7 @@ class PairedReads(object):
                 else:
                     unmapped_seq = reads[0].seq
                     
-                format_line = "%s\t" * 8 + "\n"
+                format_line = '\t'.join(["%s"] * 8) + "\n"
                 f.write(format_line % (qname,
                                        unmapped_seq, reads[0].pos,
                                        reads[0].mapq,
@@ -177,7 +177,7 @@ class PairedReads(object):
 
         # Write to file
         for key in self.grouped_odd_pairs:
-            filename = self.basename + '-' + key + ".txt"
+            filename = key + ".txt"
             if dir is not None:
                 filename = os.path.join(outdir, filename)
                 if not os.path.exists(outdir):
@@ -185,7 +185,7 @@ class PairedReads(object):
             with open(filename, 'w') as f:
                 for readname, readset in self.grouped_odd_pairs[key].items():
                     strands = [("forward", "reverse")[int(r.is_reverse)] for r in readset]
-                    format_line = "%s\t" * 9 + "\n"
+                    format_line = '\t'.join(["%s"] * 9) + "\n"
                     f.write(format_line % (readname,
                                            readset[0].seq, readset[1].seq,
                                            readset[0].pos, readset[1].pos,

@@ -78,7 +78,7 @@ if __name__ == "__main__":
     parser = OptionParser()
     parser.add_option("-d", "--dir", dest="dir",
                       help="directory to output files (default: {arg}-out)",
-                      default=None)
+                      default='.')
     (options, args) = parser.parse_args()
 
     if options.dir is None:

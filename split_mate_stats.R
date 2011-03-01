@@ -16,24 +16,6 @@ if (!exists('outdir'))
 
 split.mates.dir <- 'split-mates-reliable'
 
-pathJoin =
-# Make a path out of directory and file parts.
-function(...) {
-  args <- list(...)
-  args$sep = '/'
-  do.call(paste, args)
-}
-
-getBasename =
-# Given a path to a file like test/dir/filename.ext, extract
-# "filename".
-function(filename) {
-  parts <- unlist(strsplit(filename, '/'))
-  filename <- parts[length(parts)]
-  basename <- unlist(strsplit(filename, '.', fixed=TRUE))[1]
-  return(basename)
-}
-
 writeFasta =
 # Write a fastafile, given headers and sequences.
 function(headers, seqeunces, filename) {
@@ -51,14 +33,9 @@ processSplitMateFile =
 # Given a split-mate file, gather statistics and output a subset of
 # the original file of entries that have mates that map to the forward
 # strand of chromosome 11.
-function(filename, outputdir=pathJoin(outdir,'fusion-reads')) {
-  if (!file.exists(outputdir)) {
-    message(sprintf("Creating output directory '%s'", outputdir))
-    system(sprintf("mkdir %s", outputdir))
-  }
-    
+function(filename) {
   d <- read.csv(filename, header=FALSE, sep='\t')
-  basename <- getBasename(filename)
+  basename <- basename(filename)
 
   chromosomes <- local({
     tmp <- unlist(strsplit(filename, '[\\.-]'))
@@ -96,14 +73,14 @@ function(filename, outputdir=pathJoin(outdir,'fusion-reads')) {
   strand.stats$num.candidates <- nrow(candidates)
   
   ## write.table(candidates,
-  ##             file=pathJoin(outputdir, sprintf("%s-subset.txt", basename)),
+  ##             file=file.path(outputdir, sprintf("%s-subset.txt", basename)),
   ##             quote=FALSE, row.names=FALSE, sep='\t')
 
   return(list(strand.stats=strand.stats, pos.stats=pos.stats))
 }
 
-chr11.split.mates.files <- dir(pathJoin(outdir, split.mates.dir), pattern="chr11")
-output = lapply(chr11.split.mates.files, function(fn) processSplitMateFile(pathJoin(outdir, split.mates.dir, fn)))
+chr11.split.mates.files <- dir(file.path(outdir, split.mates.dir), pattern="chr11")
+output = lapply(chr11.split.mates.files, function(fn) processSplitMateFile(file.path(outdir, split.mates.dir, fn)))
 
 out.name <- sprintf("%s-candidate-summary.txt", unlist(strsplit(outdir, '-'))[1])
 
