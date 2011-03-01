@@ -213,6 +213,6 @@ if __name__ == "__main__":
         mapping_dir = check_dir("fusion-read-alignments", output_dir)
         chromosome = singles_fasta.split('-')[0]
         mapping_file = os.path.join(mapping_dir, "%s.sam" % chromosome)
-        subprocess.call("bwa bwasw -T 10 -c 5 -t 3 %s %s > %s" % (options.ref,
-                                                                  os.path.join(fusion_read_dir, singles_fasta),
-                                                                  mapping_file), shell=True)
+        cmd = "bwa bwasw -T 10 -c 5 -t 3 %s %s > %s"
+        subprocess.call(cmd % (options.ref, os.path.join(fusion_read_dir, singles_fasta),
+                            mapping_file), shell=True)

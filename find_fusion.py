@@ -57,6 +57,7 @@ def extract_fusion_candidates(filename, outdir):
                 else:
                     not_xMyS += 1
             else:
+                reverse += 1
                 if e1[0] == 0 and e2[0] == 4:
                     matched = read.seq[:e1[1]]
                     cut = read.seq[e1[1]:]
@@ -64,14 +65,18 @@ def extract_fusion_candidates(filename, outdir):
                     correct += 1
                     f.write("%s\t%s\t%s\t%s\t%s\t%s\n" % (read.qname, break_pos,
                                                           matched, cut, strand, read.mapq))
-                reverse += 1
+                else:
+                    not_xMyS += 1
+
+                
     return {'unmapped':unmapped,
             'mapped':mapped,
             'CIGAR entry length not 2':length_not_2,
-            'CIGAR format not xM yS':not_xMyS,
+            'CIGAR format not xMyS':not_xMyS,
             'mapped to reverse strand':reverse,
             'total':total,
-            'correct':correct}
+            'correct':correct,
+            'ignored':total-correct}
             
                 
 if __name__ == "__main__":
@@ -94,8 +99,12 @@ if __name__ == "__main__":
     stats = extract_fusion_candidates(args[0], options.dir)
 
     # sort keys first so output format is always the same
-    keys = stats.keys()
-    keys.sort()
+    keys = ['unmapped', 'mapped', 'CIGAR entry length not 2',
+            'CIGAR format not xMyS', 'mapped to reverse strand',
+            'correct', 'ignored', 'total']
 
-    for k in keys:
-        sys.stdout.write("%s\t%s\n" % (k, stats[k]))
+    basename = args[0].split('.')[0]
+
+    with open("%s-fusion-stats.txt" % basename, 'w') as f:
+        for k in keys:
+            f.write("%s\t%s\n" % (k, stats[k]))
