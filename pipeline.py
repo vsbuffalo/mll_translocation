@@ -218,3 +218,23 @@ if __name__ == "__main__":
         cmd = "bwa bwasw -T 10 -c 5 -t 3 %s %s > %s"
         subprocess.call(cmd % (options.ref, os.path.join(fusion_read_dir, singles_fasta),
                             mapping_file), shell=True)
+
+    ## Part 4: Cluster soft-clipped reads from BWA bwasw, which are
+    ## candidate heads of the rearrangements.
+    
+
+
+    ## Part 5: extract split-mate sequences with clustered positions, and assemble
+    logging.info("Extracting rearrangement candidate mates, clustering by position.")
+    subprocess.call("Rscript split_mate_stats.R %s-output" % basename, shell=True)
+    assembled_mates_dir = os.path.join("%s-output" % basename, "assembled-mates")
+    cmd = "python assemble.py %s > %s"
+    logging.info("Assembling candidate mates in consensus candidates.")
+    if (os.path.exists(assembled_mates_dir)):
+        for mates_file in os.listdir(assembled_mates_dir):
+            chromosome = mates_file.split('-')[0]
+            outpath = check_dir(os.path.join(assembled_mates_dir, "consensus-seqs"))
+            outpath = os.path.join(outpath, "%s.fasta" % chromosome)
+            fasta_file = os.path.join(assembled_mates_dir, mates_file)
+            subprocess.call(cmd % (fasta_file, outpath), shell=True)
+        

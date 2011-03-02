@@ -15,6 +15,7 @@ class SequenceConsensus(object):
         self.length = preallocate
         self.consensus = [{'A':0, 'T':0, 'C':0, 'G':0, 'N':0} for i in range(preallocate)]
         self.seq = ""
+        self.positions = list()
         
     def add_seq(self, seq, pos):
         for i, base in enumerate(seq):
@@ -60,6 +61,7 @@ if __name__ == "__main__":
         line = line.strip()
         if line.startswith('>'):
             position = int(line[1:])
+            consensus.positions.append(position)
             seq = fasta_file.next().strip()
         seqs.append((seq, position))
 
@@ -71,4 +73,5 @@ if __name__ == "__main__":
         consensus.pileup(int(options.width), output=True)
     else:
         consensus.pileup()
+        sys.stdout.write(">pos.range:%s,%s\n" % (min(consensus.positions), max(consensus.positions)))
         sys.stdout.write(consensus.seq + '\n')
