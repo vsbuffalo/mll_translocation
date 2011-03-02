@@ -1,6 +1,7 @@
 ## assemble.py - take a FASTA file in which headers are mapped
 ## position, and assembly a consensus seq.
 
+import sys
 from optparse import OptionParser
 import operator
 
@@ -8,7 +9,7 @@ class SequenceConsensus(object):
     """
     """
 
-    def __init__(self, preallocate=100):
+    def __init__(self, preallocate=10000):
         """
         """
         self.length = preallocate
@@ -24,18 +25,26 @@ class SequenceConsensus(object):
                 self.consensus[pos+i][base] += 1
                 self.length += 1
 
-    def pileup(self):
+    def pileup(self, width=100, output=False):
+        max_count = max([max(d.values()) for d in self.consensus])
+        collapse = int(max_count/width)
         for base_dict in self.consensus:
             tups = sorted(base_dict.items(), key=operator.itemgetter(1), reverse=True)
-            self.seq += tups[0][0]
-            print tups[0][0] + ' ' + '|'*tups[0][1] + ''.join([t[0]*t[1] for t in tups[1:]])
+            if max([c for b, c in tups]) > 0:
+                if output:
+                    print tups[0][0] + ' ' + '|'*(tups[0][1]/collapse) + ''.join([t[0]*t[1] for t in tups[1:]])
+                self.seq += tups[0][0]
+
 
 
 if __name__ == "__main__":
     parser = OptionParser()
-    # parser.add_option("-l", "--len", dest="len",
-    #                   help="max length of sequence (used for pre-allocation)",
-    #                   default="mll_template/mll.fasta")
+    parser.add_option("-p", "--pileup", dest="pileup",
+                      help="print pileup to screen",
+                      default=False, action="store_true")
+    parser.add_option("-w", "--width", dest="width",
+                      help="screen width (for histogram)",
+                      default=100)
 
     options, args = parser.parse_args()
 
@@ -58,4 +67,8 @@ if __name__ == "__main__":
     for seq, pos in seqs:
         consensus.add_seq(seq, pos-start)
 
-    consensus.pileup()
+    if options.pileup:
+        consensus.pileup(int(options.width), output=True)
+    else:
+        consensus.pileup()
+        sys.stdout.write(consensus.seq + '\n')

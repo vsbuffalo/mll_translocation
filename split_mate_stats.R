@@ -18,16 +18,67 @@ split.mates.dir <- 'split-mates-reliable'
 
 writeFasta =
 # Write a fastafile, given headers and sequences.
-function(headers, seqeunces, filename) {
-  if (length(header) != length(seqeunces))
-    error("Arguments for headers and sequences must be same length.")
-
+function(headers, sequences, filename) {
+  if (length(headers) != length(sequences))
+    stop("Arguments for headers and sequences must be same length.")
   con <- file(filename, open='w')
   for (j in 1:length(headers)) {
     cat(sprintf(">%s\n%s\n", headers[j], sequences[j]), file=con)
   }
   close(con)
 }
+
+checkDir =
+# if a directory doesn't exist, make it
+function(dir) {
+  if (!file.exists(dir)) {
+    message(sprintf("Making directory '%s'", dir))
+    system(sprintf("mkdir -p %s", dir))
+  }
+  dir
+}
+
+clusterByPosition =
+# Cluster and output FASTA file sequences by position, only pairs with
+# forward-mapped mate on chr11.
+function(pos.stats, count.thresh=30, num.groups=10000) {
+  x <- table(pos.stats$pos.chralt)
+
+  ## check for lack of peaks
+  if (sum(x) <= count.thresh || 0.8*length(x) <= length(which(x >= quantile(x, probs=0.9)))) {
+    message(sprintf("No peaks in %s", pos.stats$chralt))
+    return()
+  }
+  
+  y <- as.integer(names(x))
+  names(y) <- y
+  h <- hclust(dist(y))
+
+  groups <- cutree(h, h=num.groups)
+  groups.table <- table(groups)
+
+  top.decile <- quantile(groups.table, probs=0.9)
+  keep <- as.integer(names(groups.table))[groups.table > top.decile]
+  if (length(keep) != 1)
+    stop("More than one cluster passes threshold.")
+  group.range <- range(as.integer(names(groups)[groups == keep]))
+  lower <- group.range[1]
+  upper <- group.range[2]
+
+  d <- pos.stats
+
+  headers = d$pos.chralt[d$strand.chr11 == 'forward' & d$pos.chralt > lower & d$pos.chralt < upper]
+  if (length(headers) > 0)
+    sequences = d$seq.chralt[d$strand.chr11 == 'forward' & d$pos.chralt > lower & d$pos.chralt < upper]
+  else
+    return()
+  
+  rootname <- sprintf("%s-grouped-seqs.fasta", pos.stats$chralt)
+  dir <- checkDir(file.path(outdir, "assembled-mates"))
+  filename <- file.path(dir, rootname)
+  writeFasta(headers, sequences, filename)
+}
+
 
 processSplitMateFile =
 # Given a split-mate file, gather statistics and output a subset of
@@ -78,6 +129,9 @@ function(filename) {
   ##             file=file.path(outputdir, sprintf("%s-subset.txt", basename)),
   ##             quote=FALSE, row.names=FALSE, sep='\t')
 
+  ## Cluster by position, output grouped sequences.
+  clusterByPosition(pos.stats)
+  
   return(list(strand.stats=strand.stats, pos.stats=pos.stats))
 }
 
