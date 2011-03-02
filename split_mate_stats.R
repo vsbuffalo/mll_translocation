@@ -38,7 +38,7 @@ function(filename) {
   basename <- basename(filename)
 
   chromosomes <- local({
-    tmp <- unlist(strsplit(filename, '[\\.-]'))
+    tmp <- unlist(strsplit(basename(filename), '[\\.-]'))
     return(tmp[grep('chr', tmp)])
   })
 
@@ -67,7 +67,8 @@ function(filename) {
   pos.stats$mqual.chralt <- d[, paste('mqual', chralt, sep='.')]
   pos.stats$seq.chralt <- d[, paste('seq', chralt, sep='.')]
 
-
+  if (chralt == 'chr9')
+    browser()
   
   candidates <- subset(d, strand.chr11 == 'forward')
   strand.stats$num.candidates <- nrow(candidates)
