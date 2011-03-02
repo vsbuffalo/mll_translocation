@@ -60,6 +60,10 @@ function(filename) {
   chr11.strands <- table(d$strand.chr11)
   strand.stats$chr11.forward <- chr11.strands['forward']
   strand.stats$chr11.reverse <- chr11.strands['reverse']
+
+  pos.stats$strand.chralt <- d[, paste('strand', chralt, sep='.')]
+  pos.stats$strand.chr11 <- d$strand.chr11
+  
   pos.stats$name <- d$name
   pos.stats$pos.chr11 <- d$pos.chr11
   pos.stats$pos.chralt <- d[, paste('pos', chralt, sep='.')]
@@ -67,9 +71,6 @@ function(filename) {
   pos.stats$mqual.chralt <- d[, paste('mqual', chralt, sep='.')]
   pos.stats$seq.chralt <- d[, paste('seq', chralt, sep='.')]
 
-  if (chralt == 'chr9')
-    browser()
-  
   candidates <- subset(d, strand.chr11 == 'forward')
   strand.stats$num.candidates <- nrow(candidates)
   
@@ -83,7 +84,8 @@ function(filename) {
 chr11.split.mates.files <- dir(file.path(outdir, split.mates.dir), pattern="chr11")
 output = lapply(chr11.split.mates.files, function(fn) processSplitMateFile(file.path(outdir, split.mates.dir, fn)))
 
-out.name <- sprintf("%s-candidate-summary.txt", unlist(strsplit(outdir, '-'))[1])
+out.name <- file.path(outdir, "stats",
+                      sprintf("%s-candidate-summary.txt", unlist(strsplit(outdir, '-'))[1]))
 
 # Output lists contain statistics for position and strand statistics -
 # unaggregate these.

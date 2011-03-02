@@ -203,6 +203,8 @@ if __name__ == "__main__":
     qra_file_others = get_rearrangements(reliable_split_dir, stats_dir,
                                          "reliable-all-rearrangement-counts.txt", inverse=True)
 
+    ## Gather statistics on mappings
+    subprocess.call("Rscript split_mate_stats.R %s-output" % basename, shell=True)
 
     ## Part 3: Take singles file; generate FASTA files of unmapped
     ## mates by chromosome, map using BWA's bwasw.
