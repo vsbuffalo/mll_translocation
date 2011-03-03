@@ -17,7 +17,7 @@ import pysam
 import os
 import sys
 
-def extract_fusion_candidates(filename, outdir=""):
+def extract_fusion_candidates(filename, outdir="", statsdir=""):
     """
     A fusion candidate is a read mapped to the forward strand with a
     CIGAR string in the format xMyS. This function gathers such reads
@@ -86,7 +86,7 @@ def extract_fusion_candidates(filename, outdir=""):
             'CIGAR format not xMyS', 'mapped to reverse strand',
             'correct', 'ignored', 'total']
 
-    with open(os.path.join("%s-fusion-stats.txt" % basename), 'w') as f:
+    with open(os.path.join(statsdir, "%s-fusion-stats.txt" % basename), 'w') as f:
         for k in keys:
             f.write("%s\t%s\n" % (k, stats[k]))
 

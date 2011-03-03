@@ -232,7 +232,7 @@ if __name__ == "__main__":
             continue
         chromosome = candidate_fasta.split('.')[0]
         logging.info("Finding candidate fusion sites in hybrid (unmapped mates) in '%s'" % chromosome)
-        ff.extract_fusion_candidates(filepath, outdir=fusion_alignment_outdir)
+        ff.extract_fusion_candidates(filepath, outdir=fusion_alignment_outdir, statsdir=stats_dir)
         logging.info("Clustering soft clipped sequences in '%s'" % chromosome)
         to_cluster = os.path.join(fusion_alignment_outdir, "%s-hybrids.fasta" % chromosome)
         out_cluster = os.path.join(cluster_dir, "%s-clusters.fasta" % chromosome)
