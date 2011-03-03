@@ -17,7 +17,7 @@ import pysam
 import os
 import sys
 
-def extract_fusion_candidates(filename, outdir):
+def extract_fusion_candidates(filename, outdir=""):
     """
     A fusion candidate is a read mapped to the forward strand with a
     CIGAR string in the format xMyS. This function gathers such reads
@@ -30,8 +30,9 @@ def extract_fusion_candidates(filename, outdir):
     total = 0
     correct = 0
     mapped = 0
-    basename = filename.split('.')[0]
-    with open(basename + "-fusion-candidates.txt", 'w') as f:
+    basename = os.path.basename(filename).split('.')[0]
+    fasta_file = open(os.path.join(outdir, "%s-hybrids.fasta" % basename), 'w')
+    with open(os.path.join(outdir, "%s-fusion-candidates.txt" % basename), 'w') as f:
         for read in pysam.Samfile(filename):
             total += 1
             if read.is_unmapped:
@@ -54,6 +55,7 @@ def extract_fusion_candidates(filename, outdir):
                     correct += 1
                     f.write("%s\t%s\t%s\t%s\t%s\t%s\n" % (read.qname, break_pos,
                                                           matched, cut, strand, read.mapq))
+                    fasta_file.write(">%s\n%s\n" % (read.qname, cut))
                 else:
                     not_xMyS += 1
             else:
@@ -65,18 +67,31 @@ def extract_fusion_candidates(filename, outdir):
                     correct += 1
                     f.write("%s\t%s\t%s\t%s\t%s\t%s\n" % (read.qname, break_pos,
                                                           matched, cut, strand, read.mapq))
+                    fasta_file.write(">%s\n%s\n" % (read.qname, cut))
                 else:
                     not_xMyS += 1
 
                 
-    return {'unmapped':unmapped,
-            'mapped':mapped,
-            'CIGAR entry length not 2':length_not_2,
-            'CIGAR format not xMyS':not_xMyS,
-            'mapped to reverse strand':reverse,
-            'total':total,
-            'correct':correct,
-            'ignored':total-correct}
+    stats =  {'unmapped':unmapped,
+              'mapped':mapped,
+              'CIGAR entry length not 2':length_not_2,
+              'CIGAR format not xMyS':not_xMyS,
+              'mapped to reverse strand':reverse,
+              'total':total,
+              'correct':correct,
+              'ignored':total-correct}
+    
+    # sort keys first so output format is always the same
+    keys = ['unmapped', 'mapped', 'CIGAR entry length not 2',
+            'CIGAR format not xMyS', 'mapped to reverse strand',
+            'correct', 'ignored', 'total']
+
+    with open(os.path.join("%s-fusion-stats.txt" % basename), 'w') as f:
+        for k in keys:
+            f.write("%s\t%s\n" % (k, stats[k]))
+
+    return stats
+
             
                 
 if __name__ == "__main__":
@@ -97,14 +112,3 @@ if __name__ == "__main__":
         parser.error("File '%s' does not exist." % args[0])
 
     stats = extract_fusion_candidates(args[0], options.dir)
-
-    # sort keys first so output format is always the same
-    keys = ['unmapped', 'mapped', 'CIGAR entry length not 2',
-            'CIGAR format not xMyS', 'mapped to reverse strand',
-            'correct', 'ignored', 'total']
-
-    basename = args[0].split('.')[0]
-
-    with open("%s-fusion-stats.txt" % basename, 'w') as f:
-        for k in keys:
-            f.write("%s\t%s\n" % (k, stats[k]))

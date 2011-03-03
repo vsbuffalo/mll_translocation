@@ -6,7 +6,7 @@ genome. High coverage reads must be quality-controlled by adaptive
 quality trimming and sequence adapter contaminant trimming.
 
 """
-
+import pdb
 import pysam
 import csv
 import os
@@ -18,6 +18,7 @@ from optparse import OptionParser
 import logging
 
 import find_split_mates as fsm
+import find_fusion as ff
 
 LEVELS = {'debug': logging.DEBUG,
           'info': logging.INFO,
@@ -183,25 +184,25 @@ if __name__ == "__main__":
     # before mapping quality pruning
     ra_file = get_rearrangements(split_mates_dir, stats_dir, "rearrangement-counts.txt")
 
-    # run samtools quality pruning on SAM file
-    logging.info("Using Samtools to remove 0-mapping-quality reads in '%s'." % args[0])
-    reliable_sam_file = basename + "-reliable.sam"
-    cmd = "samtools view -S -h -q%s %s > %s" % (options.mqual, args[0], reliable_sam_file)
-    logging.info("Running command: '%s'." % cmd)
-    subprocess.call(cmd, shell=True)
+    # # run samtools quality pruning on SAM file
+    # logging.info("Using Samtools to remove 0-mapping-quality reads in '%s'." % args[0])
+    # reliable_sam_file = basename + "-reliable.sam"
+    # cmd = "samtools view -S -h -q%s %s > %s" % (options.mqual, args[0], reliable_sam_file)
+    # logging.info("Running command: '%s'." % cmd)
+    # subprocess.call(cmd, shell=True)
 
-    # Re-run find_split_mates sub-pipeline on mapping-quality-trimmed
-    # data Note: We can't run the -singles (one mate mapped, the other
-    # unmapped) file with mapping quality subsetting.
-    reliable_split_dir = check_dir("split-mates-reliable", output_dir)
-    find_split_mates(reliable_sam_file, reliable_split_dir, no_unmapped=True)
+    # # Re-run find_split_mates sub-pipeline on mapping-quality-trimmed
+    # # data Note: We can't run the -singles (one mate mapped, the other
+    # # unmapped) file with mapping quality subsetting.
+    # reliable_split_dir = check_dir("split-mates-reliable", output_dir)
+    # find_split_mates(reliable_sam_file, reliable_split_dir, no_unmapped=True)
     
-    # Re-running finding split-mate pipeline on quality-pruned data
-    qra_file = get_rearrangements(reliable_split_dir, stats_dir,
-                                  "reliable-rearrangement-counts.txt")
+    # # Re-running finding split-mate pipeline on quality-pruned data
+    # qra_file = get_rearrangements(reliable_split_dir, stats_dir,
+    #                               "reliable-rearrangement-counts.txt")
 
-    qra_file_others = get_rearrangements(reliable_split_dir, stats_dir,
-                                         "reliable-all-rearrangement-counts.txt", inverse=True)
+    # qra_file_others = get_rearrangements(reliable_split_dir, stats_dir,
+    #                                      "reliable-all-rearrangement-counts.txt", inverse=True)
 
     ## Gather statistics on mappings
     subprocess.call("Rscript split_mate_stats.R %s-output" % basename, shell=True)
@@ -219,9 +220,23 @@ if __name__ == "__main__":
         subprocess.call(cmd % (options.ref, os.path.join(fusion_read_dir, singles_fasta),
                             mapping_file), shell=True)
 
-    ## Part 4: Cluster soft-clipped reads from BWA bwasw, which are
-    ## candidate heads of the rearrangements.
-    
+    ## Part 4: Find fusions and cluster soft-clipped reads from BWA
+    ## bwasw, which are candidate heads of the rearrangements.
+    fusion_alignment_dir = os.path.join("%s-output" % basename, "fusion-read-alignments")
+    fusion_alignment_outdir = check_dir("hybrid-seqs", parent="%s-output" % basename)
+    cmd = "cd-hit -i %s -o %s -g 1 > /dev/null"
+    cluster_dir = check_dir("hybrid-clusters", parent="%s-output" % basename)
+    for candidate_fasta in [f for f in os.listdir(fusion_alignment_dir)]:
+        filepath = os.path.join(fusion_alignment_dir, candidate_fasta)
+        if candidate_fasta.split('.')[1] != 'sam' or os.path.getsize(filepath) == 0:
+            continue
+        chromosome = candidate_fasta.split('.')[0]
+        logging.info("Finding candidate fusion sites in hybrid (unmapped mates) in '%s'" % chromosome)
+        ff.extract_fusion_candidates(filepath, outdir=fusion_alignment_outdir)
+        logging.info("Clustering soft clipped sequences in '%s'" % chromosome)
+        to_cluster = os.path.join(fusion_alignment_outdir, "%s-hybrids.fasta" % chromosome)
+        out_cluster = os.path.join(cluster_dir, "%s-clusters.fasta" % chromosome)
+        subprocess.call(cmd % (to_cluster, out_cluster), shell=True)
 
 
     ## Part 5: extract split-mate sequences with clustered positions, and assemble

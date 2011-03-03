@@ -29,6 +29,8 @@ class SequenceConsensus(object):
     def pileup(self, width=100, output=False):
         max_count = max([max(d.values()) for d in self.consensus])
         collapse = int(max_count/width)
+        if collapse == 0:
+            collapse = 1
         for base_dict in self.consensus:
             tups = sorted(base_dict.items(), key=operator.itemgetter(1), reverse=True)
             if max([c for b, c in tups]) > 0:
