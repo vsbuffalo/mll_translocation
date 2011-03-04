@@ -136,6 +136,7 @@ function(filename) {
 }
 
 chr11.split.mates.files <- dir(file.path(outdir, split.mates.dir), pattern="chr11")
+browser()
 output = lapply(chr11.split.mates.files, function(fn) processSplitMateFile(file.path(outdir, split.mates.dir, fn)))
 
 out.name <- file.path(outdir, "stats",

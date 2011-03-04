@@ -165,6 +165,7 @@ if __name__ == "__main__":
     ## Check Samtools and Rscript
     check_in_path('samtools')
     check_in_path('Rscript')
+    check_in_path('cd-hit')
     
     ### Analysis ###
 
@@ -184,25 +185,30 @@ if __name__ == "__main__":
     # before mapping quality pruning
     ra_file = get_rearrangements(split_mates_dir, stats_dir, "rearrangement-counts.txt")
 
-    # # run samtools quality pruning on SAM file
-    # logging.info("Using Samtools to remove 0-mapping-quality reads in '%s'." % args[0])
-    # reliable_sam_file = basename + "-reliable.sam"
-    # cmd = "samtools view -S -h -q%s %s > %s" % (options.mqual, args[0], reliable_sam_file)
-    # logging.info("Running command: '%s'." % cmd)
-    # subprocess.call(cmd, shell=True)
+    # run samtools quality pruning on SAM file
+    reliable_sam_file = basename + "-reliable.sam"
+    if not os.path.exists(reliable_sam_file):
+        logging.info("Using Samtools to remove 0-mapping-quality reads in '%s'." % args[0])
 
-    # # Re-run find_split_mates sub-pipeline on mapping-quality-trimmed
-    # # data Note: We can't run the -singles (one mate mapped, the other
-    # # unmapped) file with mapping quality subsetting.
-    # reliable_split_dir = check_dir("split-mates-reliable", output_dir)
-    # find_split_mates(reliable_sam_file, reliable_split_dir, no_unmapped=True)
-    
-    # # Re-running finding split-mate pipeline on quality-pruned data
-    # qra_file = get_rearrangements(reliable_split_dir, stats_dir,
-    #                               "reliable-rearrangement-counts.txt")
+        cmd = "samtools view -S -h -q%s %s > %s" % (options.mqual, args[0], reliable_sam_file)
+        logging.info("Running command: '%s'." % cmd)
+        subprocess.call(cmd, shell=True)
+    else:
+        logging.info("'%s' found - using existing reliable mapping file." % reliable_sam_file)
 
-    # qra_file_others = get_rearrangements(reliable_split_dir, stats_dir,
-    #                                      "reliable-all-rearrangement-counts.txt", inverse=True)
+    # Re-run find_split_mates sub-pipeline on mapping-quality-trimmed
+    # data Note: We can't run the -singles (one mate mapped, the other
+    # unmapped) file with mapping quality subsetting.
+    reliable_split_dir = check_dir("split-mates-reliable", output_dir)
+    find_split_mates(reliable_sam_file, reliable_split_dir, no_unmapped=True)
+
+    # Re-running finding split-mate pipeline on quality-pruned data
+    qra_file = get_rearrangements(reliable_split_dir, stats_dir,
+                                  "reliable-rearrangement-counts.txt")
+
+    qra_file_others = get_rearrangements(reliable_split_dir, stats_dir,
+                                         "reliable-all-rearrangement-counts.txt", inverse=True)
+
 
     ## Gather statistics on mappings
     subprocess.call("Rscript split_mate_stats.R %s-output" % basename, shell=True)
@@ -231,6 +237,7 @@ if __name__ == "__main__":
         if candidate_fasta.split('.')[1] != 'sam' or os.path.getsize(filepath) == 0:
             continue
         chromosome = candidate_fasta.split('.')[0]
+
         logging.info("Finding candidate fusion sites in hybrid (unmapped mates) in '%s'" % chromosome)
         ff.extract_fusion_candidates(filepath, outdir=fusion_alignment_outdir, statsdir=stats_dir)
         logging.info("Clustering soft clipped sequences in '%s'" % chromosome)

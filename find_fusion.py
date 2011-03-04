@@ -101,8 +101,6 @@ if __name__ == "__main__":
                       default='.')
     (options, args) = parser.parse_args()
 
-    if options.dir is None:
-        options.dir = args[0] + "-out"
     if not os.path.exists(options.dir):
         os.mkdir(options.dir)
 
