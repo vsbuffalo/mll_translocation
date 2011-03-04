@@ -57,8 +57,8 @@ function(pos.stats, count.thresh=30, num.groups=10000) {
   groups <- cutree(h, h=num.groups)
   groups.table <- table(groups)
 
-  top.decile <- quantile(groups.table, probs=0.9)
-  keep <- as.integer(names(groups.table))[groups.table > top.decile]
+  cutoff <- mean(groups.table)
+  keep <- as.integer(names(groups.table))[groups.table > cutoff]
   if (length(keep) != 1)
     stop("More than one cluster passes threshold.")
   group.range <- range(as.integer(names(groups)[groups == keep]))
@@ -136,7 +136,6 @@ function(filename) {
 }
 
 chr11.split.mates.files <- dir(file.path(outdir, split.mates.dir), pattern="chr11")
-browser()
 output = lapply(chr11.split.mates.files, function(fn) processSplitMateFile(file.path(outdir, split.mates.dir, fn)))
 
 out.name <- file.path(outdir, "stats",

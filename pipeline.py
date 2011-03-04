@@ -230,7 +230,7 @@ if __name__ == "__main__":
     ## bwasw, which are candidate heads of the rearrangements.
     fusion_alignment_dir = os.path.join("%s-output" % basename, "fusion-read-alignments")
     fusion_alignment_outdir = check_dir("hybrid-seqs", parent="%s-output" % basename)
-    cmd = "cd-hit -i %s -o %s -g 1 > /dev/null"
+    cmd = "cd-hit -i %s -o %s -g 1 -d 200 > /dev/null"
     cluster_dir = check_dir("hybrid-clusters", parent="%s-output" % basename)
     for candidate_fasta in [f for f in os.listdir(fusion_alignment_dir)]:
         filepath = os.path.join(fusion_alignment_dir, candidate_fasta)
