@@ -109,9 +109,146 @@ candidate? Hierarchical clustering is used to group by distance.
 
 * Split Reads: extracting possible fusion sites and confirming rearrangement partners
 
+The other information in the paired end reads mapped to the entire
+human genome are those that have one mate mapped and another
+unmapped. BWA's short read aligner (unlike its long read aligner) will
+not align only part of a read. Thus a read containing the fusion site
+somewhere in the middle of its sequence will likely not map, since the
+sequence will contain a large section of translocation chromosome.
+
+The =unmapped_mates= table contains all reads in which one mate is
+unmapped. Ordering by count, we see evidence of the same rearragement
+partners as with the split-mates data:
+
 #+begin_src R +n :tangle analysis.R
-  
+  query <- "
+  SELECT mapped_chr, count(*) AS count FROM unmapped_mates 
+  WHERE mapped_mqual > 30 GROUP BY mapped_chr ORDER BY count DESC;"
+  fusion.counts <- dbGetQuery(con, query)
+  print(fusion.counts)
 #+end_src
+
+#+results:
+#+begin_example
+   mapped_chr count
+1       chr11 28218
+2        chr2  6862
+3        chr9  3590
+4       chr21  3535
+5        chr8  1223
+6        chr6   767
+7        chr1   563
+8        chr5   422
+9       chr12   414
+10      chr22   357
+11       chr4   350
+12      chr17   295
+13       chr3   294
+14      chr16   265
+15       chr7   238
+16      chr20   237
+17      chr14   199
+18      chr15   160
+19      chr19   155
+20      chr18   103
+21      chr10    94
+22       chrX    93
+23      chr13    89
+24       chrY     3
+#+end_example
+
+The presumption here is that the unmapped mate will contain some
+chromosome 11 (specifically MLL) sequence. We extract and map the
+unmapped mates, keeping them grouped by the chromosome of their mapped
+mate (which, if this were a true rearrangement, would be the
+rearrangement partner).
+
+#+begin_src R +n :tangle analysis.R
+  writeFasta =
+  # Write a fastafile, given headers and sequences.
+  function(headers, sequences, filename) {
+    if (length(headers) != length(sequences))
+      stop("Arguments for headers and sequences must be same length.")
+    con <- file(filename, open='w')
+    for (j in 1:length(headers)) {
+      cat(sprintf(">%s\n%s\n", headers[j], sequences[j]), file=con)
+    }
+    close(con)
+  }
+  
+  
+  check.dir =
+  # if a directory doesn't exist, make it
+  function(dir) {
+    if (!file.exists(dir)) {
+      message(sprintf("Making directory '%s'", dir))
+      system(sprintf("mkdir -p %s", dir))
+    }
+    dir
+  }
+  
+  
+  query <- "
+  SELECT mapped_chr as chr, name as header, unmapped_seq as seq 
+  FROM unmapped_mates WHERE mapped_mqual > 30 ORDER BY mapped_chr;"
+  
+  # Get all Unmapped mates  
+  unmapped.df <- dbGetQuery(con, query)
+  unmapped.by.chr <- split(unmapped.df, unmapped.df$chr)
+  
+  fusion.read.dir <- check.dir("fusion-reads")
+  
+  for (chr in names(unmapped.by.chr)) {
+    fn <- file.path(fusion.read.dir, sprintf("%s-fusion-candidates.fasta", chr))
+    d <- unmapped.by.chr[[chr]]
+    writeFasta(d$header, d$seq, fn)
+  }
+#+end_src
+
+** BWA BWASW alignment of unmapped sequences
+
+#+begin_src R +n :tangle analysis.R
+  in.path =
+  # Use a system call to which to check if a program is in the path.
+  function(cmd) {
+    if (system(sprintf("which %s", cmd)) != 0)
+      FALSE
+    TRUE
+  }
+  
+  check.bwa = 
+  # check that the reference is properly indexed
+  function(refdir) {
+    index.ext <- unlist(strsplit("amb;;ann;;bwt;;pac;;rbwt;;rpac;;rsa;;sa;;fasta", ';;'))
+    contents <- dir(refdir)
+    m <- sapply(contents, function(x) {
+      tmp <- strsplit(basename(x), '\\.')[[1]]
+      tmp[length(tmp)] %in% index.ext
+    })
+    
+    if (!any(m))
+      stop(sprintf("Reference in '%s' does not appear to be indexed.", refdir))
+  }
+  
+  # check explicit path - allows this to work with org-mode with Emacs
+  if (!any(c(in.path("bwa"), in.path("/usr/local/bin/bwa"))))
+    stop("bwa not in path.")
+  
+  # check the reference has been indexed
+  refdir <- "mll_template"
+  ref <- file.path(refdir, "mll.fasta")
+  check.bwa(refdir)
+
+  # run long read aligner on all samples
+  bwacmd <- "bwa bwasw -T 10 -c 5 -t 3 %s %s > %s"
+  aln.dir <- check.dir(file.path(fusion.read.dir, "alignments"))
+  for (fasta.file in dir(fusion.read.dir)) {
+    chr <- unlist(strsplit(fasta.file, '-'))[1]
+    aln.file <- file.path(aln.dir, sprintf("%s.aln", chr))
+    system(sprintf(bwacmd, ref, file.path(fusion.read.dir, fasta.file), aln.file))
+  }
+#+end_src
+
 
 
 # SELECT chr_1, chr_2, count(*)
