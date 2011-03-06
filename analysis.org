@@ -1,0 +1,132 @@
+#+title: Rearrangement Candidate and Rearrangement Fusion Site Pipeline
+#+author: Vince Buffalo
+#+email: vsbuffalo@ucdavis.edu
+#+date: 
+#+babel: :results output :exports both :session :comments org
+
+* Prerequistes
+
+#+begin_src R +n :results silent :tangle analysis.R
+  require(RSQLite)
+  
+  
+  dbfile <- "samdb"
+  
+  # establish database
+  drv <- dbDriver("SQLite")
+  con <- dbConnect(drv, dbname=dbfile)  
+#+end_src
+
+
+* Split Mates: extracting candidate rearrangement partners
+
+** Raw counts of reads mapped with one forward mate to chr11 and another mate mapped elsewhere.
+
+#+begin_src R +n :tangle analysis.R
+  query <- "
+  SELECT chr_1, chr_2, strand_1, strand_2, count(*) as count
+  FROM split_mates
+  WHERE (chr_1 = 'chr11' OR chr_2='chr11') AND (mqual_1 > 30 AND mqual_2 > 30) 
+  AND (strand_1 = 'forward')
+  GROUP BY chr_1, chr_2, strand_1, strand_2;
+  "
+  all.counts <- dbGetQuery(con, query)
+#+end_src
+
+#+results:
+
+** Instate basic count threshold: candidates with more than 10 counts
+
+#+begin_src R +n :results output :tangle analysis.R
+  count.thresh <- 10
+  counts <- all.counts[all.counts$count > count.thresh, ]
+  rownames(counts) <- NULL
+  print(counts)
+#+end_src
+
+#+results:
+:   chr_1 chr_2 strand_1 strand_2 count
+: 1 chr11  chr2  forward  reverse   699
+: 2 chr11  chr4  forward  reverse    11
+: 3 chr11  chr6  forward  forward    76
+: 4 chr11  chr8  forward  forward    15
+: 5 chr11  chr9  forward  reverse  3027
+
+** Positions of rearrangement candidate reads
+
+Are there consistent positions of mapped reads in each rearrangement
+candidate? Hierarchical clustering is used to group by distance.
+
+#+begin_src R +n :tangle analysis.R
+  
+  extractCandidates = 
+  # Given rows from the split_mates table subset for a candidate
+  # rearrangement (same chr_2, other requirements met), cluster the
+  # mapped alternate chromosome positions to form clusters of mapped
+  # reads. Take a subset of these with a mapping count above the
+  # threshold, extract their position range and total counts.
+  function(reads.df, clust.member.thresh=2) {
+    if (nrow(reads.df) == 0)
+      return(NULL)
+    pos <- reads.df$pos_2
+    names(pos) <- pos
+    h = hclust(dist(pos))
+    groups <- cutree(h, h=10000)
+    groups.counts <- table(groups)
+    keep <- groups.counts[groups.counts > clust.member.thresh]
+    
+    if (length(keep) == 0)
+      return(NULL)
+    
+    
+    candidate.pos <- lapply(as.integer(names(keep)), function(x) {
+      y <- groups == x
+      r <- range(as.integer(names(groups))[y])
+      return(list(range=r, count=sum(y)))
+    })
+  
+    return(candidate.pos)
+  }
+  
+  # template query for grabbing split mate rows
+  read.query <- "
+  SELECT *
+  FROM split_mates
+  WHERE chr_1 = 'chr11' AND mqual_1 > 30 AND mqual_2 > 30
+  AND strand_1 ='forward'
+  AND chr_2 = '%s' AND strand_2 = '%s';
+  "
+  
+  # process all candidates from count thresholding step
+  cands = apply(counts, 1, function(row) {
+    cat(sprintf("extracting candidate rearrangement positions from %s\n", row[2]))
+    d <- dbGetQuery(con, sprintf(read.query, row[2], row[4]))
+    return(extractCandidates(d))
+  })
+  
+  names(cands) <- counts$chr_2
+#+end_src
+
+* Split Reads: extracting possible fusion sites and confirming rearrangement partners
+
+#+begin_src R +n :tangle analysis.R
+  
+#+end_src
+
+
+# SELECT chr_1, chr_2, count(*)
+# FROM split_mates
+# WHERE chr_1 = 'chr11' OR chr_2='chr11'
+# GROUP BY chr_1, chr_2 HAVING mqual_1 > 30 and mqual_2 > 30;
+
+
+# SELECT chr_1, chr_2, strand_1, strand_2, count(*)
+# FROM split_mates
+# WHERE (chr_1 = 'chr11' OR chr_2='chr11') and (mqual_1 > 30 and mqual_2 > 30) 
+# and (strand_1 == 'forward')
+# GROUP BY chr_1, chr_2, strand_1, strand_2;
+
+
+# order statistics?!
+# select mapped_chr, count(*) as count from unmapped_mates 
+# where mapped_mqual > 30 group by mapped_chr order by count desc;
