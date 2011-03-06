@@ -8,7 +8,7 @@
 
 #+begin_src R +n :results silent :tangle analysis.R
   require(RSQLite)
-  
+  supressMessages(require(ggplot2))  
   
   dbfile <- "samdb"
   
@@ -242,11 +242,92 @@ rearrangement partner).
   # run long read aligner on all samples
   bwacmd <- "bwa bwasw -T 10 -c 5 -t 3 %s %s > %s"
   aln.dir <- check.dir(file.path(fusion.read.dir, "alignments"))
-  for (fasta.file in dir(fusion.read.dir)) {
+  for (fasta.file in dir(fusion.read.dir, pattern="\\.fasta")) {
     chr <- unlist(strsplit(fasta.file, '-'))[1]
-    aln.file <- file.path(aln.dir, sprintf("%s.aln", chr))
+    aln.file <- file.path(aln.dir, sprintf("%s.sam", chr))
     system(sprintf(bwacmd, ref, file.path(fusion.read.dir, fasta.file), aln.file))
   }
+#+end_src
+
+** Processing alignment results with =find_fusion.py=
+
+Now, we must parse the SAM results and find the fusion sites from
+mapped reads with a CIGAR string of the format *x*M*y*S where *x* and
+*y* are integers and M and S indicate mapped and soft-clipped bases.
+
+This is done with =find_fusion.py= which uses pysam.
+
+#+begin_src R +n :tangle analysis.R
+  if (!any(c(in.path("python"), in.path("/usr/bin/python"))))
+    stop("python not in path.")
+
+  system(sprintf("ls %s/*sam | xargs -n1 python find_fusion.py --dir %s", aln.dir, aln.dir))  
+#+end_src
+
+
+** Statistical analysis of fusion sites
+
+We load each of these alignment files into the =hybid_candidates= table.
+
+#+begin_src R +n :results silent :tangle analysis.R
+  tbl.name <- "hybrid_candidates"
+  
+  # Remove any existing tables; otherwise we could load duplicates.
+  if (dbExistsTable(con, tbl.name))
+    dbRemoveTable(con, tbl.name)
+  
+  # Build a table
+  cols <- c(chr='text', name='text', split='integer', mapped='text',
+            softclipped='text', strand='text', mqual='integer')
+  tbl.query <- dbBuildTableDefinition(drv, tbl.name, NULL, field.types=cols)
+  dbGetQuery(con, tbl.query)
+  
+  # Load each dataframe into table
+  for (f in dir(aln.dir, pattern="fusion-candidates\\.txt")) {
+    chr <- strsplit(f, '-')[[1]][1]
+
+    # wrap in try because some files will be completely empty.
+    d <- try({read.csv(file.path(aln.dir, f), header=FALSE, sep='\t')}, TRUE)
+    if (is(d, 'try-error') || !nrow(d))
+      next()
+    d <- cbind(chr, d)
+    ok <- dbWriteTable(con, tbl.name, d, append=TRUE, row.names=FALSE)
+    stopifnot(ok)
+  }
+#+end_src
+
+What does the distribution of split points look like? Chromosome 11 is
+presently excluded because its level of counts are much higher than
+those of the other chromosomes.
+
+#+begin_src R +n :tangle analysis.R
+  query <- "SELECT chr AS chromosome, split, count(*) AS count
+  FROM hybrid_candidates
+  WHERE strand = 'forward'
+  GROUP BY chr, split
+  HAVING count > 20 ORDER BY count DESC;"
+  
+  split.df <- dbGetQuery(con, query)
+  p <- ggplot(subset(split.df, chromosome!='chr11'), aes(x=split))
+  p <- p + geom_histogram(aes(y=count, fill=chromosome), size=3, stat="identity", position='dodge')
+  p <- p + scale_fill_brewer() #+ scale_x_continuous(limit=c(200, 250))
+  p <- p + xlab("position") + ylab("count") 
+  print(p)
+#+end_src
+
+The chromosomes above are all rearrangement candidates. Now, write
+FASTA files for each of these (again, for the moment excluding chr11) to
+cluster.
+
+#+begin_src R +n :tangle analysis.R
+  cands <- split.df$chromosome[split.df$chromosome!='chr11']
+  
+  query <- "
+  SELECT chr, name, softclipped FROM hybrid_candidates
+  WHERE chr IN (%s);"
+  
+  tmp <- sapply(cands, function(x) sprintf("'%s'", x))
+  seqs <- dbGetQuery(con, sprintf(query, paste(tmp, collapse=', ')))  
 #+end_src
 
 
