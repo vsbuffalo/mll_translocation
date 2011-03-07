@@ -1,0 +1,257 @@
+
+## Prerequistes
+
+require(RSQLite)
+
+
+dbfile <- "samdb"
+
+# establish database
+drv <- dbDriver("SQLite")
+con <- dbConnect(drv, dbname=dbfile)
+
+## ** Raw counts of reads mapped with one forward mate to chr11 and another mate mapped elsewhere.
+
+query <- "
+SELECT chr_1, chr_2, strand_1, strand_2, count(*) as count
+FROM split_mates
+WHERE (chr_1 = 'chr11' OR chr_2='chr11') AND (mqual_1 > 30 AND mqual_2 > 30) 
+AND (strand_1 = 'forward')
+GROUP BY chr_1, chr_2, strand_1, strand_2;
+"
+all.counts <- dbGetQuery(con, query)
+
+## ** Instate basic count threshold: candidates with more than 10 counts
+
+count.thresh <- 10
+counts <- all.counts[all.counts$count > count.thresh, ]
+rownames(counts) <- NULL
+print(counts)
+
+## ** Positions of rearrangement candidate reads
+
+## Are there consistent positions of mapped reads in each rearrangement
+## candidate? Hierarchical clustering is used to group by distance.
+
+extractCandidates = 
+# Given rows from the split_mates table subset for a candidate
+# rearrangement (same chr_2, other requirements met), cluster the
+# mapped alternate chromosome positions to form clusters of mapped
+# reads. Take a subset of these with a mapping count above the
+# threshold, extract their position range and total counts.
+function(reads.df, clust.member.thresh=2) {
+  if (nrow(reads.df) == 0)
+    return(NULL)
+  pos <- reads.df$pos_2
+  names(pos) <- pos
+  h = hclust(dist(pos))
+  groups <- cutree(h, h=10000)
+  groups.counts <- table(groups)
+  keep <- groups.counts[groups.counts > clust.member.thresh]
+  
+  if (length(keep) == 0)
+    return(NULL)
+  
+  
+  candidate.pos <- lapply(as.integer(names(keep)), function(x) {
+    y <- groups == x
+    r <- range(as.integer(names(groups))[y])
+    return(list(range=r, count=sum(y)))
+  })
+
+  return(candidate.pos)
+}
+
+# template query for grabbing split mate rows
+read.query <- "
+SELECT *
+FROM split_mates
+WHERE chr_1 = 'chr11' AND mqual_1 > 30 AND mqual_2 > 30
+AND strand_1 ='forward'
+AND chr_2 = '%s' AND strand_2 = '%s';
+"
+
+# process all candidates from count thresholding step
+cands = apply(counts, 1, function(row) {
+  cat(sprintf("extracting candidate rearrangement positions from %s\n", row[2]))
+  d <- dbGetQuery(con, sprintf(read.query, row[2], row[4]))
+  return(extractCandidates(d))
+})
+
+names(cands) <- counts$chr_2
+
+## * Split Reads: extracting possible fusion sites and confirming rearrangement partners
+
+## The other information in the paired end reads mapped to the entire
+## human genome are those that have one mate mapped and another
+## unmapped. BWA's short read aligner (unlike its long read aligner) will
+## not align only part of a read. Thus a read containing the fusion site
+## somewhere in the middle of its sequence will likely not map, since the
+## sequence will contain a large section of translocation chromosome.
+
+## The =unmapped_mates= table contains all reads in which one mate is
+## unmapped. Ordering by count, we see evidence of the same rearragement
+## partners as with the split-mates data:
+
+query <- "
+SELECT mapped_chr, count(*) AS count FROM unmapped_mates 
+WHERE mapped_mqual > 30 GROUP BY mapped_chr ORDER BY count DESC;"
+fusion.counts <- dbGetQuery(con, query)
+print(fusion.counts)
+
+## #+results:
+## #+begin_example
+##    mapped_chr count
+## 1       chr11 28218
+## 2        chr2  6862
+## 3        chr9  3590
+## 4       chr21  3535
+## 5        chr8  1223
+## 6        chr6   767
+## 7        chr1   563
+## 8        chr5   422
+## 9       chr12   414
+## 10      chr22   357
+## 11       chr4   350
+## 12      chr17   295
+## 13       chr3   294
+## 14      chr16   265
+## 15       chr7   238
+## 16      chr20   237
+## 17      chr14   199
+## 18      chr15   160
+## 19      chr19   155
+## 20      chr18   103
+## 21      chr10    94
+## 22       chrX    93
+## 23      chr13    89
+## 24       chrY     3
+## #+end_example
+
+## The presumption here is that the unmapped mate will contain some
+## chromosome 11 (specifically MLL) sequence. We extract and map the
+## unmapped mates, keeping them grouped by the chromosome of their mapped
+## mate (which, if this were a true rearrangement, would be the
+## rearrangement partner).
+
+writeFasta =
+# Write a fastafile, given headers and sequences.
+function(headers, sequences, filename) {
+  if (length(headers) != length(sequences))
+    stop("Arguments for headers and sequences must be same length.")
+  con <- file(filename, open='w')
+  for (j in 1:length(headers)) {
+    cat(sprintf(">%s\n%s\n", headers[j], sequences[j]), file=con)
+  }
+  close(con)
+}
+
+
+check.dir =
+# if a directory doesn't exist, make it
+function(dir) {
+  if (!file.exists(dir)) {
+    message(sprintf("Making directory '%s'", dir))
+    system(sprintf("mkdir -p %s", dir))
+  }
+  dir
+}
+
+
+query <- "
+SELECT mapped_chr as chr, name as header, unmapped_seq as seq 
+FROM unmapped_mates WHERE mapped_mqual > 30 ORDER BY mapped_chr;"
+
+# Get all Unmapped mates  
+unmapped.df <- dbGetQuery(con, query)
+unmapped.by.chr <- split(unmapped.df, unmapped.df$chr)
+
+fusion.read.dir <- check.dir("fusion-reads")
+
+for (chr in names(unmapped.by.chr)) {
+  fn <- file.path(fusion.read.dir, sprintf("%s-fusion-candidates.fasta", chr))
+  d <- unmapped.by.chr[[chr]]
+  writeFasta(d$header, d$seq, fn)
+}
+
+## ** BWA BWASW alignment of unmapped sequences
+
+in.path =
+# Use a system call to which to check if a program is in the path.
+function(cmd) {
+  if (system(sprintf("which %s", cmd)) != 0)
+    FALSE
+  TRUE
+}
+
+check.bwa = 
+# check that the reference is properly indexed
+function(refdir) {
+  index.ext <- unlist(strsplit("amb;;ann;;bwt;;pac;;rbwt;;rpac;;rsa;;sa;;fasta", ';;'))
+  contents <- dir(refdir)
+  m <- sapply(contents, function(x) {
+    tmp <- strsplit(basename(x), '\\.')[[1]]
+    tmp[length(tmp)] %in% index.ext
+  })
+  
+  if (!any(m))
+    stop(sprintf("Reference in '%s' does not appear to be indexed.", refdir))
+}
+
+# check explicit path - allows this to work with org-mode with Emacs
+if (!any(c(in.path("bwa"), in.path("/usr/local/bin/bwa"))))
+  stop("bwa not in path.")
+
+# check the reference has been indexed
+refdir <- "mll_template"
+ref <- file.path(refdir, "mll.fasta")
+check.bwa(refdir)
+
+# run long read aligner on all samples
+bwacmd <- "bwa bwasw -T 10 -c 5 -t 3 %s %s > %s"
+aln.dir <- check.dir(file.path(fusion.read.dir, "alignments"))
+for (fasta.file in dir(fusion.read.dir, pattern="\\.fasta")) {
+  chr <- unlist(strsplit(fasta.file, '-'))[1]
+  aln.file <- file.path(aln.dir, sprintf("%s.sam", chr))
+  system(sprintf(bwacmd, ref, file.path(fusion.read.dir, fasta.file), aln.file))
+}
+
+## ** Processing alignment results with =find_fusion.py=
+
+## Now, we must parse the SAM results and find the fusion sites from
+## mapped reads with a CIGAR string of the format *x*M*y*S where *x* and
+## *y* are integers and M and S indicate mapped and soft-clipped bases.
+
+## This is done with =find_fusion.py= which uses pysam.
+
+if (!any(c(in.path("python"), in.path("/usr/bin/python"))))
+  stop("python not in path.")
+
+system(sprintf("ls %s/*sam | xargs -n1 python find_fusion.py --dir %s", aln.dir, aln.dir))
+
+## ** Statistical analysis of fusion sites
+
+## We load each of these alignment files into a table.
+
+tbl.name <- "hybrid_candidates"
+
+# Remove any existing tables; otherwise we could load duplicates.
+if (dbExistsTable(con, tbl.name))
+  dbRemoveTable(con, tbl.name)
+
+# Build a table
+cols <- c(chr='text', name='text', split='integer', mapped='text',
+          softclipped='text', strand='text', mqual='integer')
+tbl.query <- dbBuildTableDefinition(drv, tbl.name, NULL, field.types=cols)
+dbGetQuery(con, tbl.query)
+
+# Load each dataframe into table
+for (f in dir(aln.dir, pattern="fusion-candidates\\.txt")) {
+  chr <- strsplit(f, '-')[[1]][1]
+  d <- read.csv(file.path(aln.dir, f), header=FALSE, sep='\t')
+  if (!nrow(d))
+    next()
+  d <- cbind(chr, d)
+  ok <- dbWriteTable(con, tbl.name, d, append=TRUE, row.names=FALSE)
+  #stopifnot(ok)
+}
