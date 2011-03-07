@@ -8,13 +8,17 @@
 
 #+begin_src R +n :results silent :tangle analysis.R
   require(RSQLite)
-  supressMessages(require(ggplot2))  
+  suppressMessages({
+    require(ggplot2)
+    require(Biostrings)})
   
   dbfile <- "samdb"
   
   # establish database
   drv <- dbDriver("SQLite")
   con <- dbConnect(drv, dbname=dbfile)  
+    
+  
 #+end_src
 
 
@@ -240,7 +244,7 @@ rearrangement partner).
   check.bwa(refdir)
 
   # run long read aligner on all samples
-  bwacmd <- "bwa bwasw -T 10 -c 5 -t 3 %s %s > %s"
+  bwacmd <- "/usr/local/bin/bwa bwasw -T 10 -c 5 -t 3 %s %s > %s 2> /dev/null"
   aln.dir <- check.dir(file.path(fusion.read.dir, "alignments"))
   for (fasta.file in dir(fusion.read.dir, pattern="\\.fasta")) {
     chr <- unlist(strsplit(fasta.file, '-'))[1]
@@ -248,6 +252,9 @@ rearrangement partner).
     system(sprintf(bwacmd, ref, file.path(fusion.read.dir, fasta.file), aln.file))
   }
 #+end_src
+
+#+results:
+:  /usr/local/bin/bwa
 
 ** Processing alignment results with =find_fusion.py=
 
@@ -261,8 +268,12 @@ This is done with =find_fusion.py= which uses pysam.
   if (!any(c(in.path("python"), in.path("/usr/bin/python"))))
     stop("python not in path.")
 
-  system(sprintf("ls %s/*sam | xargs -n1 python find_fusion.py --dir %s", aln.dir, aln.dir))  
+  system(sprintf("ls %s/*sam | xargs -n1 python find_fusion.py", aln.dir))
 #+end_src
+
+#+results:
+: /usr/bin/python
+: /usr/bin/python
 
 
 ** Statistical analysis of fusion sites
@@ -315,6 +326,8 @@ those of the other chromosomes.
   print(p)
 #+end_src
 
+#+results:
+
 The chromosomes above are all rearrangement candidates. Now, write
 FASTA files for each of these (again, for the moment excluding chr11) to
 cluster.
@@ -327,22 +340,113 @@ cluster.
   WHERE chr IN (%s);"
   
   tmp <- sapply(cands, function(x) sprintf("'%s'", x))
-  seqs <- dbGetQuery(con, sprintf(query, paste(tmp, collapse=', ')))  
+  seqs <- dbGetQuery(con, sprintf(query, paste(tmp, collapse=', ')))
+
+  # divide by chromosome, write FASTA files
+  seqs.by.chr <- split(seqs, seqs$chr)
+
+  cluster.dir <- check.dir("hybrid-clusters")
+  for (chr in names(seqs.by.chr)) {
+    fn <- file.path(cluster.dir, sprintf("%s-clipped.fasta", chr))
+    s <- seqs.by.chr[[chr]]
+    if (nrow(s) > 0)
+      writeFasta(s$name, s$softclipped, fn)
+  }  
 #+end_src
 
+** Soft-clipped sequence clustering
+
+Use =cd-hit= to cluster soft-clipped sequences (which in a
+rearrangement will be the alternate chromosome). =cd-hit= produces
+FASTA files of representative sequences, as well as .clstr files that
+indicate cluster membership. To see how many sequences are clustered
+into a single representative sequence, we extract the information from
+the .clstr file.
+
+#+begin_src R +n
+  if (!any(c(in.path("cd-hit"), in.path("/usr/local/bin/cd-hit"))))
+    stop("cd-hit not in path.")
+  
+  for (fasta.file in dir(cluster.dir, pattern="\\-clipped.fasta$")) {
+    chr <- strsplit(fasta.file, '-')[[1]][1]
+    fn <- file.path(cluster.dir, fasta.file)
+    cfn <- file.path(cluster.dir, sprintf("%s-clusters.fasta", chr))
+    ok <- system(sprintf("/usr/local/bin/cd-hit -i %s -o %s -g 1 -d 200 > /dev/null", fn, cfn))
+    stopifnot(ok == 0)
+  }
+  
+  processClstrFile =
+  # cd-hit produces .clstr files with information on the cluster
+  # sequences. This is the only way to (1) get the number of sequences
+  # clustered in a representative sequence, and (2) get the header of
+  # the representative sequence.
+  function(filename) {
+    contents <- readLines(filename)
+    clusters <- list()
+    first <- TRUE
+    for (line in contents) {    
+      if (length(grep('>Cluster', line))) {
+        if (!first) {
+          # push result to clusters list
+          clusters[[header]] <- count
+        } else {
+          first <- FALSE
+        }
+        count <- 0
+      } else {
+        count <- count + 1
+        parts <- unlist(strsplit(line, '\\s+'))
+        if ('*' %in% parts) {
+          header <- gsub('[^>]+>([^\\.]+).*', '\\1', line)
+        }
+      }
+    }
+  
+    return(unlist(clusters))
+  }
+    
+  # Grab representative sequences and corresponding clstr files and process.
+  for (fasta.file in dir(cluster.dir, pattern="\\-clusters.fasta$")) {
+    chr <- strsplit(fasta.file, '-')[[1]][1]
+    fn <- file.path(cluster.dir, fasta.file)
+    clstr.file <- file.path(cluster.dir, sprintf("%s.clstr", fasta.file))
+  
+    # process .clstr files
+    rep.seqs <- as.data.frame(cbind(processClstrFile(clstr.file)))
+  
+    # read FASTA file
+    clusters <- local({
+      tmp <- readFASTA(fn, strip.descs=TRUE)
+      headers <- lapply(tmp, function(x) x[[1]])
+      seqs <- lapply(tmp, function(x) x[[2]])
+      tmp <- as.data.frame(cbind(seqs))
+      rownames(tmp) <- headers
+      tmp
+    })
+  
+    # match counts and sequence
+    clusters <- merge(clusters, rep.seqs, by.x=0, by.y=0)
+    clusters <- cbind(chr, clusters)
+    colnames(clusters) <- c('chr', 'name', 'seq', 'count')
+  
+    print(clusters[clusters$count > 10, c('chr', 'seq', 'count')])
+  }
+  
+#+end_src
+
+#+results:
+: /usr/local/bin/cd-hit
+:     chr                                                      seq count
+: 5  chr2 GCTGCTCCTACCCCCACTGGCCACTCTCTTTGAGCCAACTGGCCAAGAGCGGTCAC   215
+: 18 chr2 TACTCTGAATCTCCCGCAGTGTCCTCTGCCTAGGACAAACCAGACCTTACAACTGT   171
+:    chr                                                      seq count
+: 1 chr8 TACTCTGAATCTCCTGCAGTGTCCTCTGCCTAGGACAAACCAGACCTTACAACTGT    33
+:     chr                                                      seq count
+: 1  chr9   TATCTAAACAGTGAGACTGGAGATACATTGTGCATTTTATATCCTGTTTTTTAT   748
+: 16 chr9 TACTCTGAAGCTCCCGCAGTGTCCTCTGCCTAGGACAAACCAGACCTTACAACTGT    12
 
 
-# SELECT chr_1, chr_2, count(*)
-# FROM split_mates
-# WHERE chr_1 = 'chr11' OR chr_2='chr11'
-# GROUP BY chr_1, chr_2 HAVING mqual_1 > 30 and mqual_2 > 30;
 
-
-# SELECT chr_1, chr_2, strand_1, strand_2, count(*)
-# FROM split_mates
-# WHERE (chr_1 = 'chr11' OR chr_2='chr11') and (mqual_1 > 30 and mqual_2 > 30) 
-# and (strand_1 == 'forward')
-# GROUP BY chr_1, chr_2, strand_1, strand_2;
 
 
 # order statistics?!

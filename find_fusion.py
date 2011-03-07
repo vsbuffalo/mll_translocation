@@ -98,9 +98,12 @@ if __name__ == "__main__":
     parser = OptionParser()
     parser.add_option("-d", "--dir", dest="dir",
                       help="directory to output files (default: {arg}-out)",
-                      default='.')
+                      default=None, metavar="FILE")
     (options, args) = parser.parse_args()
 
+    if options.dir is None:
+        options.dir = os.path.dirname(args[0])
+        
     if not os.path.exists(options.dir):
         os.mkdir(options.dir)
 
