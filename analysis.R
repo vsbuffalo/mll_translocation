@@ -93,6 +93,9 @@ function(x, file="", desc=NULL) {
 sample.name <- strsplit(basename(dbfile), '\\.')[[1]][1]
 outdir <- check.dir(sprintf("%s-output", sample.name))
 
+# make a results directory
+results.dir <- check.dir(file.path(outdir, "results"))
+
 ## ** Check required programs are in path
 
 message("Checking required programs are in path.")
@@ -132,6 +135,9 @@ all.counts <- dbGetQuery(con, query)
 count.thresh <- 10
 counts <- all.counts[all.counts$count > count.thresh, ]
 rownames(counts) <- NULL
+
+fn <- file.path(results.dir, "split-mate-candidate-counts.txt")
+write.table(counts, file, quote=FALSE, row.names=FALSE)
 print(counts)
 
 ## ** Positions of rearrangement candidate reads
@@ -251,6 +257,9 @@ WHERE mapped_mqual > 30 GROUP BY mapped_chr ORDER BY count DESC;"
 
 message("Querying composition of mapped mates with unmapped partner mate.")
 fusion.counts <- dbGetQuery(con, query)
+
+write.table(fusion.counts, file.path(results.dir, "fusion-counts.txt"),
+            quote=FALSE, row.names=FALSE)
 print(fusion.counts)
 
 ## #+results:
@@ -527,9 +536,6 @@ rownames(clusters) <- NULL
 ##      of the cluster density. Translocation partners should have high
 ##      cluster density.
 ##    - =*-clipped.fasta= duplicates =*-hybrids.fasta=.
-
-# make a results directory
-results.dir <- check.dir(file.path(outdir, "results"))
 
 sm.cands <- local({
   # Make ragged list cands more output-friendly

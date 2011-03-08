@@ -104,6 +104,9 @@ the basename of the SQLite file and "-output", i.e. =CAGTACT-output=.
 #+begin_src R +n :results silent :tangle analysis.R
   sample.name <- strsplit(basename(dbfile), '\\.')[[1]][1]
   outdir <- check.dir(sprintf("%s-output", sample.name))
+
+  # make a results directory
+  results.dir <- check.dir(file.path(outdir, "results"))
 #+end_src
 
 ** Check required programs are in path
@@ -156,7 +159,11 @@ the basename of the SQLite file and "-output", i.e. =CAGTACT-output=.
   count.thresh <- 10
   counts <- all.counts[all.counts$count > count.thresh, ]
   rownames(counts) <- NULL
+  
+  fn <- file.path(results.dir, "split-mate-candidate-counts.txt")
+  write.table(counts, file, quote=FALSE, row.names=FALSE)
   print(counts)
+  
 #+end_src
 
 #+results:
@@ -287,10 +294,14 @@ partners as with the split-mates data:
   query <- "
   SELECT mapped_chr, count(*) AS count FROM unmapped_mates 
   WHERE mapped_mqual > 30 GROUP BY mapped_chr ORDER BY count DESC;"
-
+  
   message("Querying composition of mapped mates with unmapped partner mate.")
   fusion.counts <- dbGetQuery(con, query)
+  
+  write.table(fusion.counts, file.path(results.dir, "fusion-counts.txt"),
+              quote=FALSE, row.names=FALSE)
   print(fusion.counts)
+  
 #+end_src
 
 #+results:
@@ -586,9 +597,6 @@ Now, output all results. The =basename-output= directory contains:
    - =*-clipped.fasta= duplicates =*-hybrids.fasta=.
 
 #+begin_src R +n :tangle analysis.R  
-  # make a results directory
-  results.dir <- check.dir(file.path(outdir, "results"))
-
   sm.cands <- local({
     # Make ragged list cands more output-friendly
     tmp <- sapply(cands, function(x) do.call(rbind, x))
