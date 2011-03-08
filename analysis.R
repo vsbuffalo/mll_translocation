@@ -380,7 +380,7 @@ split.cands <- split.df$chromosome[split.df$chromosome!='chr11']
 
 query <- "
 SELECT chr, name, softclipped FROM hybrid_candidates
-WHERE chr IN (%s);"
+WHERE chr IN (%s) GROUP BY name;"
 
 message("Querying fusion candidate hybrid reads from database, writing FASTA files.")
 tmp <- sapply(split.cands, function(x) sprintf("'%s'", x))
@@ -467,13 +467,8 @@ for (fasta.file in dir(cluster.dir, pattern="\\-clusters.fasta$")) {
     seqs <- lapply(tmp, function(x) x[[2]])
 
     # check for non unique row names
-    if (length(uni <- unique(headers)) != length(headers)) {
-      warning("Removing clusters with non-unique headers!")
-      indx <- match(headers, uni)
-      headers <- headers[indx]
-      seqs <- seqs[indx]
-    }
-    
+    stop("Clusters with non-unique headers!")
+
     tmp <- as.data.frame(cbind(seqs))
     rownames(tmp) <- headers
     tmp
