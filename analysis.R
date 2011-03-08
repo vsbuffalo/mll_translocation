@@ -151,7 +151,11 @@ function(reads.df, clust.member.thresh=2) {
   pos <- reads.df$pos_2
   names(pos) <- pos
   message("    running hclust() and dist() - this can take a while.")
-  h = hclust(dist(unique(pos)))
+  
+  max.clust.len <- 600
+  if (length(pos) > max.clust.len)
+     pos <- pos[sample(1:length(pos), max.clust.len)]
+  h = hclust(dist(pos))
   groups <- cutree(h, h=10000)
   groups.counts <- table(groups)
   keep <- groups.counts[groups.counts > clust.member.thresh]
