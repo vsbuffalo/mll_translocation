@@ -178,6 +178,44 @@ candidate? Hierarchical clustering is used to group by distance.
 
 ** Build a mapped mate assembled consensus sequence from mapping positions
 
+The mates mapped to the translocated sequence from the rearrangement
+chromosome have mapping positions, which can be used to reassemble
+this sequence from the reads. The program =assemble.py= does this
+quickly (as it doesn't need to map to the entire human genome).
+
+First, we must query all mates mapped in the regions of interest and
+output them to FASTA files.
+
+#+begin_src R +n :tangle analysis.R
+  query <- "
+  SELECT chr_2, name, seq_2, pos_2 FROM split_mates
+  WHERE pos_2 >= %s AND pos_2 <= %s AND chr_1 = 'chr11' AND chr_2 = '%s'
+  AND strand_1 = 'forward' AND mqual_1 > 30 AND mqual_2 > 30;
+  "
+  
+  # Make FASTA files for each region of interst's reads. This can take a
+  # while, so we'll output a message.
+  message("Writing sequences for consensus assembly.")
+  assembly.dir <- check.dir(file.path(outdir, "assembly"))
+  for (chr in names(cands)) {
+    regions <- cands[[chr]]
+    for (region in regions) {
+      region.name <- paste(region$range, collapse="-")
+      fn <- file.path(assembly.dir, sprintf("%s-%s.fasta", chr, region.name))
+      results <- dbGetQuery(con, sprintf(query, min(region$range), max(region$range), chr))
+      writeFASTA(results$seq_2, file=fn, desc=as.character(results$pos_2))
+    }
+  }
+  
+  cons.dir <- check.dir(file.path(assembly.dir, "consensuses"))
+  for (fn in dir(assembly.dir, pattern="\\.fasta$")) {
+    chr <- strsplit(fn, '-')[[1]][1]
+    out.fn <- file.path(cons.dir, sprintf("%s.fasta", chr))
+    system(sprintf("%s assemble.py %s > %s", py.cmd, file.path(assembly.dir, fn), out.fn))
+  }
+    
+  
+#+end_src
 
 * Split Reads: extracting possible fusion sites and confirming rearrangement partners
 
@@ -367,13 +405,13 @@ FASTA files for each of these (again, for the moment excluding chr11) to
 cluster.
 
 #+begin_src R +n :tangle analysis.R
-  cands <- split.df$chromosome[split.df$chromosome!='chr11']
+  split.cands <- split.df$chromosome[split.df$chromosome!='chr11']
   
   query <- "
   SELECT chr, name, softclipped FROM hybrid_candidates
   WHERE chr IN (%s);"
   
-  tmp <- sapply(cands, function(x) sprintf("'%s'", x))
+  tmp <- sapply(split.cands, function(x) sprintf("'%s'", x))
   seqs <- dbGetQuery(con, sprintf(query, paste(tmp, collapse=', ')))
 
   # divide by chromosome, write FASTA files
