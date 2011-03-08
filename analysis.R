@@ -466,9 +466,6 @@ for (fasta.file in dir(cluster.dir, pattern="\\-clusters.fasta$")) {
     headers <- lapply(tmp, function(x) x[[1]])
     seqs <- lapply(tmp, function(x) x[[2]])
 
-    # check for non unique row names
-    stop("Clusters with non-unique headers!")
-
     tmp <- as.data.frame(cbind(seqs))
     rownames(tmp) <- headers
     tmp
