@@ -167,6 +167,8 @@ function(reads.df, clust.member.thresh=2) {
   candidate.pos <- lapply(as.integer(names(keep)), function(x) {
     y <- groups == x
     r <- range(as.integer(names(groups))[y])
+    if (any(is.na(r)))
+      stop("Range contains NA!")
     return(list(range=r, count=sum(y)))
   })
 
