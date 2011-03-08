@@ -10,9 +10,9 @@ suppressMessages({
   require(Biostrings)
   require(RSQLite)
 })
-
+TEST.MODE <- system('uname -s', intern=TRUE) == 'Darwin'
 # For testing and org-mode usesage.
-if (interactive()) {
+if (interactive() && TEST.MODE) {
   dbfile <- "CAGTACT.db"
 } else {
   args <- commandArgs()
