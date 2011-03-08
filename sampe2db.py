@@ -221,7 +221,14 @@ mapped_pos integer, mapped_mqual integer, mapped_strand text)""" % self.unmapped
 if __name__ == "__main__":
     parser = OptionParser()
     options, args = parser.parse_args()
-    
-    m = PairedReads(args[0], 'samdb')
+
+    if len(args) < 1:
+        parser.error("SAM file argument required.")
+
+    if not os.path.exists(args[0]):
+        parser.error("File in argument does not exist.")
+
+    dbname = os.path.basename(args[0]).split('.')[0]
+    m = PairedReads(args[0], dbname)
     m.gather_pairs()
     m.gather_unmapped_ends()
