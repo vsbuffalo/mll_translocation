@@ -6,6 +6,7 @@ from optparse import OptionParser
 import pysam
 import sqlite3
 import pdb
+import os
 from string import maketrans
 complement_table = maketrans("ATCGatcg", "TAGCtagc")
 
