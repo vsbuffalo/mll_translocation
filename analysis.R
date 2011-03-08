@@ -458,7 +458,7 @@ for (fasta.file in dir(cluster.dir, pattern="\\-clusters.fasta$")) {
     next()
 
   # process .clstr files
-  rep.seqs <- as.data.frame()
+  rep.seqs <- as.data.frame(d)
 
   # read FASTA file
   clusters <- local({

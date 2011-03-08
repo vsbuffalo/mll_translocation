@@ -512,7 +512,7 @@ the .clstr file.
       next()
 
     # process .clstr files
-    rep.seqs <- as.data.frame()
+    rep.seqs <- as.data.frame(d)
   
     # read FASTA file
     clusters <- local({
