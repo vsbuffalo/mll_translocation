@@ -10,11 +10,8 @@ suppressMessages({
   require(Biostrings)
   require(RSQLite)
 })
-TEST.MODE <- system('uname -s', intern=TRUE) == 'Darwin'
-# For testing and org-mode usesage.
-if (interactive() && TEST.MODE) {
-  dbfile <- "CAGTACT.db"
-} else if(!interactive()) {
+
+if(!interactive()) {
   args <- commandArgs()
   arg.delim <- which(args == '--args') + 1
   args <- args[arg.delim:length(args)]
@@ -453,12 +450,12 @@ for (fasta.file in dir(cluster.dir, pattern="\\-clusters.fasta$")) {
   fn <- file.path(cluster.dir, fasta.file)
   clstr.file <- file.path(cluster.dir, sprintf("%s.clstr", fasta.file))
 
-  d <- cbind(processClstrFile(clstr.file))
+  d <- processClstrFile(clstr.file)
   if (nrow(d) == 0)
     next()
 
   # process .clstr files
-  rep.seqs <- as.data.frame(d)
+  rep.seqs <- as.data.frame(cbind(d))
 
   # read FASTA file
   clusters <- local({
