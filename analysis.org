@@ -435,7 +435,13 @@ those of the other chromosomes.
   p <- p + geom_histogram(aes(y=count, fill=chromosome), size=3, stat="identity", position='dodge')
   p <- p + scale_fill_brewer() #+ scale_x_continuous(limit=c(200, 250))
   p <- p + xlab("position") + ylab("count") 
-  print(p)
+  if (interactive())
+    print(p)
+  else {
+    png(file.path(results.dir, "break-points.png"), width=900, height=900)
+    print(p)
+    dev.off()
+  }
 #+end_src
 
 #+results:
