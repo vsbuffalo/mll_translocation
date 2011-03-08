@@ -45,18 +45,21 @@ These functions are used frequently in the code.
     }
     dir
   }
- 
+     
   in.path =
    # Use a system call to which to check if a program is in the
    # path. cmd can be a vector of places to look. This is because Emacs
    # on OS X doesn't load $PATH, so it will check all of these places
    # and return a string of the first place that returns a result.
    function(cmd) {
-     paths <- sapply(cmd, function(c) system(sprintf("which %s", c)) == 0)
+     paths <- sapply(cmd, function(c) system(sprintf("which %s", c), 
+                                             ignore.stdout=TRUE) == 0)
      if (!any(paths))
        NA
      cmd[min(which(paths))]
    }
+    
+  
 #+end_src
 
 ** Directory structure
@@ -64,8 +67,9 @@ These functions are used frequently in the code.
 Everything in this analysis is contained in a directory named after
 the basename of the SQLite file and "-output", i.e. =CAGTACT-output=.
 
-#+begin_src R +n :results silent :tangle analysis.R 
-  outdir <- check.dir(sprintf("%s-output", basename(dbfile)))
+#+begin_src R +n :results silent :tangle analysis.R
+  sample.name <- strsplit(basename(dbfile), '\\.')[[1]][1]
+  outdir <- check.dir(sprintf("%s-output", sample.name))
 #+end_src
 
 ** Check required programs are in path
@@ -252,7 +256,7 @@ rearrangement partner).
   unmapped.df <- dbGetQuery(con, query)
   unmapped.by.chr <- split(unmapped.df, unmapped.df$chr)
   
-  fusion.read.dir <- check.dir("fusion-reads")
+  fusion.read.dir <- check.dir(file.path(outdir, "fusion-reads"))
   
   for (chr in names(unmapped.by.chr)) {
     fn <- file.path(fusion.read.dir, sprintf("%s-fusion-candidates.fasta", chr))
@@ -263,7 +267,7 @@ rearrangement partner).
 
 ** BWA BWASW alignment of unmapped sequences
 
-#+begin_src R +n :tangle analysis.R
+#+begin_src R +n :results silent :tangle analysis.R
   check.bwa = 
   # check that the reference is properly indexed
   function(refdir) {
@@ -278,23 +282,21 @@ rearrangement partner).
       stop(sprintf("Reference in '%s' does not appear to be indexed.", refdir))
   }
 
-  # check the reference has been indexed
+  # check the reference has been indexed - this should be in the main directory
   refdir <- "mll_template"
   ref <- file.path(refdir, "mll.fasta")
   check.bwa(refdir)
 
   # run long read aligner on all samples
-  bwacmd <- "/usr/local/bin/bwa bwasw -T 10 -c 5 -t 3 %s %s > %s 2> /dev/null"
+  bwarun <- "%s bwasw -T 10 -c 5 -t 3 %s %s > %s 2> /dev/null"
   aln.dir <- check.dir(file.path(fusion.read.dir, "alignments"))
   for (fasta.file in dir(fusion.read.dir, pattern="\\.fasta")) {
     chr <- unlist(strsplit(fasta.file, '-'))[1]
     aln.file <- file.path(aln.dir, sprintf("%s.sam", chr))
-    system(sprintf(bwacmd, ref, file.path(fusion.read.dir, fasta.file), aln.file))
+    system(sprintf(bwarun, bwa.cmd, ref, file.path(fusion.read.dir, fasta.file), aln.file))
   }
 #+end_src
 
-#+results:
-:  /usr/local/bin/bwa
 
 ** Processing alignment results with =find_fusion.py=
 
@@ -304,14 +306,9 @@ mapped reads with a CIGAR string of the format *x*M*y*S where *x* and
 
 This is done with =find_fusion.py= which uses pysam.
 
-#+begin_src R +n :tangle analysis.R
-  system(sprintf("ls %s/*sam | xargs -n1 python find_fusion.py", aln.dir))
+#+begin_src R +n :results silent :tangle analysis.R
+  system(sprintf("ls %s/*sam | xargs -n1 %s find_fusion.py", aln.dir, py.cmd))
 #+end_src
-
-#+results:
-: /usr/bin/python
-: /usr/bin/python
-
 
 ** Statistical analysis of fusion sites
 
@@ -382,7 +379,7 @@ cluster.
   # divide by chromosome, write FASTA files
   seqs.by.chr <- split(seqs, seqs$chr)
 
-  cluster.dir <- check.dir("hybrid-clusters")
+  cluster.dir <- check.dir(file.path(outdir, "hybrid-clusters"))
   for (chr in names(seqs.by.chr)) {
     fn <- file.path(cluster.dir, sprintf("%s-clipped.fasta", chr))
     s <- seqs.by.chr[[chr]]
@@ -400,7 +397,7 @@ indicate cluster membership. To see how many sequences are clustered
 into a single representative sequence, we extract the information from
 the .clstr file.
 
-#+begin_src R +n
+#+begin_src R +n :tangle analysis.R
   for (fasta.file in dir(cluster.dir, pattern="\\-clipped.fasta$")) {
     chr <- strsplit(fasta.file, '-')[[1]][1]
     fn <- file.path(cluster.dir, fasta.file)
@@ -467,19 +464,6 @@ the .clstr file.
   }
   
 #+end_src
-
-#+results:
-: /usr/local/bin/cd-hit
-:     chr                                                      seq count
-: 5  chr2 GCTGCTCCTACCCCCACTGGCCACTCTCTTTGAGCCAACTGGCCAAGAGCGGTCAC   215
-: 18 chr2 TACTCTGAATCTCCCGCAGTGTCCTCTGCCTAGGACAAACCAGACCTTACAACTGT   171
-:    chr                                                      seq count
-: 1 chr8 TACTCTGAATCTCCTGCAGTGTCCTCTGCCTAGGACAAACCAGACCTTACAACTGT    33
-:     chr                                                      seq count
-: 1  chr9   TATCTAAACAGTGAGACTGGAGATACATTGTGCATTTTATATCCTGTTTTTTAT   748
-: 16 chr9 TACTCTGAAGCTCCCGCAGTGTCCTCTGCCTAGGACAAACCAGACCTTACAACTGT    12
-
-
 
 
 
