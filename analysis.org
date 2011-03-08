@@ -19,7 +19,8 @@ particular sample.
    # For testing and org-mode usesage.
    if (interactive()) {
      dbfile <- "CAGTACT.db"
-   
+     
+     message(sprintf("Establishing database connection to %s", dbfile))
      # establish database
      drv <- dbDriver("SQLite")
      con <- dbConnect(drv, dbname=dbfile)  
@@ -58,8 +59,20 @@ These functions are used frequently in the code.
        NA
      cmd[min(which(paths))]
    }
-    
   
+  check.bwa = 
+  # check that the reference is properly indexed
+  function(refdir) {
+    index.ext <- unlist(strsplit("amb;;ann;;bwt;;pac;;rbwt;;rpac;;rsa;;sa;;fasta", ';;'))
+    contents <- dir(refdir)
+    m <- sapply(contents, function(x) {
+      tmp <- strsplit(basename(x), '\\.')[[1]]
+      tmp[length(tmp)] %in% index.ext
+    })
+    
+    if (!any(m))
+      stop(sprintf("Reference in '%s' does not appear to be indexed.", refdir))
+  }
 #+end_src
 
 ** Directory structure
@@ -75,6 +88,7 @@ the basename of the SQLite file and "-output", i.e. =CAGTACT-output=.
 ** Check required programs are in path
 
 #+begin_src R +n :results silent :tangle analysis.R
+  message("Checking required programs are in path.")
   # check explicit path - allows this to work with org-mode with Emacs
   bwa.cmd <- in.path(c("bwa", "/usr/local/bin/bwa"))
   py.cmd <- in.path(c("python", "/usr/bin/python"))
@@ -85,6 +99,16 @@ the basename of the SQLite file and "-output", i.e. =CAGTACT-output=.
     failed <- paste(names(required.cmd)[which(is.na(required.cmd))], collapse=',')
     stop(sprintf("The following required programs could not be found in path: %s", failed))
   }
+#+end_src
+
+** Check BWA reference is indexed
+
+#+begin_src R +n :tangle analysis.R
+  message("Checking BWA reference is properly indexed.")
+  # check the reference has been indexed - this should be in the main directory
+  refdir <- "mll_template"
+  ref <- file.path(refdir, "mll.fasta")
+  check.bwa(refdir)
 #+end_src
 
 * Split Mates: extracting candidate rearrangement partners
@@ -99,6 +123,7 @@ the basename of the SQLite file and "-output", i.e. =CAGTACT-output=.
   AND (strand_1 = 'forward')
   GROUP BY chr_1, chr_2, strand_1, strand_2;
   "
+  message("Querying split_mate for rearrangement candidate counts.")
   all.counts <- dbGetQuery(con, query)
 #+end_src
 
@@ -166,9 +191,10 @@ candidate? Hierarchical clustering is used to group by distance.
   AND chr_2 = '%s' AND strand_2 = '%s';
   "
   
+  message("Extracting candidate rearrangement positions for:")
   # process all candidates from count thresholding step
   cands = apply(counts, 1, function(row) {
-    cat(sprintf("extracting candidate rearrangement positions from %s\n", row[2]))
+    message(sprintf("  %s", row[2]))
     d <- dbGetQuery(con, sprintf(read.query, row[2], row[4]))
     return(extractCandidates(d))
   })
@@ -195,7 +221,7 @@ output them to FASTA files.
   
   # Make FASTA files for each region of interst's reads. This can take a
   # while, so we'll output a message.
-  message("Writing sequences for consensus assembly.")
+  message("Writing sequences for consensus assemblies.")
   assembly.dir <- check.dir(file.path(outdir, "assembly"))
   for (chr in names(cands)) {
     regions <- cands[[chr]]
@@ -207,14 +233,13 @@ output them to FASTA files.
     }
   }
   
+  message("Running assemble.py to build consensus assemblies.")
   cons.dir <- check.dir(file.path(assembly.dir, "consensuses"))
   for (fn in dir(assembly.dir, pattern="\\.fasta$")) {
     chr <- strsplit(fn, '-')[[1]][1]
     out.fn <- file.path(cons.dir, sprintf("%s.fasta", chr))
     system(sprintf("%s assemble.py %s > %s", py.cmd, file.path(assembly.dir, fn), out.fn))
   }
-    
-  
 #+end_src
 
 * Split Reads: extracting possible fusion sites and confirming rearrangement partners
@@ -234,6 +259,8 @@ partners as with the split-mates data:
   query <- "
   SELECT mapped_chr, count(*) AS count FROM unmapped_mates 
   WHERE mapped_mqual > 30 GROUP BY mapped_chr ORDER BY count DESC;"
+
+  message("Querying composition of mapped mates with unmapped partner mate.")
   fusion.counts <- dbGetQuery(con, query)
   print(fusion.counts)
 #+end_src
@@ -274,58 +301,30 @@ mate (which, if this were a true rearrangement, would be the
 rearrangement partner).
 
 #+begin_src R +n :tangle analysis.R
-  writeFasta =
-  # Write a fastafile, given headers and sequences.
-  function(headers, sequences, filename) {
-    if (length(headers) != length(sequences))
-      stop("Arguments for headers and sequences must be same length.")
-    con <- file(filename, open='w')
-    for (j in 1:length(headers)) {
-      cat(sprintf(">%s\n%s\n", headers[j], sequences[j]), file=con)
-    }
-    close(con)
-  }
-  
   query <- "
   SELECT mapped_chr as chr, name as header, unmapped_seq as seq 
   FROM unmapped_mates WHERE mapped_mqual > 30 ORDER BY mapped_chr;"
   
-  # Get all Unmapped mates  
+  # Get all Unmapped mates
+  message("Querying all unmapped mates.")
   unmapped.df <- dbGetQuery(con, query)
   unmapped.by.chr <- split(unmapped.df, unmapped.df$chr)
   
   fusion.read.dir <- check.dir(file.path(outdir, "fusion-reads"))
   
+  message("Writing unmapped sequences to FASTA files.")
   for (chr in names(unmapped.by.chr)) {
     fn <- file.path(fusion.read.dir, sprintf("%s-fusion-candidates.fasta", chr))
     d <- unmapped.by.chr[[chr]]
-    writeFasta(d$header, d$seq, fn)
+    writeFASTA(d$seq, fn, desc=d$header)
   }
 #+end_src
 
 ** BWA BWASW alignment of unmapped sequences
 
 #+begin_src R +n :results silent :tangle analysis.R
-  check.bwa = 
-  # check that the reference is properly indexed
-  function(refdir) {
-    index.ext <- unlist(strsplit("amb;;ann;;bwt;;pac;;rbwt;;rpac;;rsa;;sa;;fasta", ';;'))
-    contents <- dir(refdir)
-    m <- sapply(contents, function(x) {
-      tmp <- strsplit(basename(x), '\\.')[[1]]
-      tmp[length(tmp)] %in% index.ext
-    })
-    
-    if (!any(m))
-      stop(sprintf("Reference in '%s' does not appear to be indexed.", refdir))
-  }
-
-  # check the reference has been indexed - this should be in the main directory
-  refdir <- "mll_template"
-  ref <- file.path(refdir, "mll.fasta")
-  check.bwa(refdir)
-
   # run long read aligner on all samples
+  message("Running BWA bwasw on unmapped mates.")
   bwarun <- "%s bwasw -T 10 -c 5 -t 3 %s %s > %s 2> /dev/null"
   aln.dir <- check.dir(file.path(fusion.read.dir, "alignments"))
   for (fasta.file in dir(fusion.read.dir, pattern="\\.fasta")) {
@@ -345,6 +344,7 @@ mapped reads with a CIGAR string of the format *x*M*y*S where *x* and
 This is done with =find_fusion.py= which uses pysam.
 
 #+begin_src R +n :results silent :tangle analysis.R
+  message("Running find_fusion.py on BWA bwasw results.")
   system(sprintf("ls %s/*sam | xargs -n1 %s find_fusion.py", aln.dir, py.cmd))
 #+end_src
 
@@ -355,6 +355,7 @@ We load each of these alignment files into the =hybid_candidates= table.
 #+begin_src R +n :results silent :tangle analysis.R
   tbl.name <- "hybrid_candidates"
   
+  message("Loading find_fusion results into database table.")
   # Remove any existing tables; otherwise we could load duplicates.
   if (dbExistsTable(con, tbl.name))
     dbRemoveTable(con, tbl.name)
@@ -411,18 +412,19 @@ cluster.
   SELECT chr, name, softclipped FROM hybrid_candidates
   WHERE chr IN (%s);"
   
+  message("Querying fusion candidate hybrid reads from database, writing FASTA files.")
   tmp <- sapply(split.cands, function(x) sprintf("'%s'", x))
   seqs <- dbGetQuery(con, sprintf(query, paste(tmp, collapse=', ')))
 
   # divide by chromosome, write FASTA files
   seqs.by.chr <- split(seqs, seqs$chr)
 
-  cluster.dir <- check.dir(file.path(outdir, "hybrid-clusters"))
+  cluster.dir <- check.dir(file.path(outdir, "clusters"))
   for (chr in names(seqs.by.chr)) {
     fn <- file.path(cluster.dir, sprintf("%s-clipped.fasta", chr))
     s <- seqs.by.chr[[chr]]
     if (nrow(s) > 0)
-      writeFasta(s$name, s$softclipped, fn)
+      writeFASTA(s$softclipped, fn, desc=s$name)
   }  
 #+end_src
 
@@ -436,6 +438,7 @@ into a single representative sequence, we extract the information from
 the .clstr file.
 
 #+begin_src R +n :tangle analysis.R
+  message("Running cd-hit on fusion candidate reads.")
   for (fasta.file in dir(cluster.dir, pattern="\\-clipped.fasta$")) {
     chr <- strsplit(fasta.file, '-')[[1]][1]
     fn <- file.path(cluster.dir, fasta.file)
@@ -473,7 +476,9 @@ the .clstr file.
   
     return(unlist(clusters))
   }
-    
+
+  all.clusters <- list()
+  message("Processing cd-hit clustering results.")
   # Grab representative sequences and corresponding clstr files and process.
   for (fasta.file in dir(cluster.dir, pattern="\\-clusters.fasta$")) {
     chr <- strsplit(fasta.file, '-')[[1]][1]
@@ -497,13 +502,91 @@ the .clstr file.
     clusters <- merge(clusters, rep.seqs, by.x=0, by.y=0)
     clusters <- cbind(chr, clusters)
     colnames(clusters) <- c('chr', 'name', 'seq', 'count')
-  
+    all.clusters[[chr]] <- clusters
     print(clusters[clusters$count > 10, c('chr', 'seq', 'count')])
   }
   
+  # bit of name mangling here...
+  clusters <- do.call(rbind, all.clusters)
+  rownames(clusters) <- NULL
 #+end_src
 
 
+* Final Output
+
+Now, output all results. The =basename-output= directory contains:
+
+ - =assembly=
+   - =*.fasta*= files of the mates in which the other mate maps to
+     chromosome 11 (forward strand), with headers of the mapping
+     position. We may want to just use the mapped mate in split-read
+     mates.
+   - =consensuses= assemblies of the mates done by position.
+ - =fusion-reads=
+   - =*.fasta= files containing the unmapped mates (mapped mate
+     chromosome is in the filename).
+   - =alignments=
+     - =*.sam= =BWA bwasw= alignment of the unmapped mates to the
+       reference (MLL) template. These should produce
+       partially-aligned sequences, with soft-clipped sequence being
+       that of the rearrangement partner in the case that the read
+       spans the fusion site.
+     - =*-fusion-candidates.txt= tab delimited output from
+       =find_fusion.py=, which parses the SAM mapping file to find
+       mappings with the cigar string in a *x*M*y*S format, which
+       corresponds to a soft-clipped 3'-end sequence. The strand in
+       the translocated case should be 'forward', and the position
+       around 215.
+     - =*-hybrids.fasta= The soft-clipped portions of alignment, used
+       for clustering.
+ - =clusters=
+   - =*-clusters.fasta= clustered (with =cd-hit= tail
+     sequences). Longer sequences from the rearrangement partner
+     should BLAT to the Human Genome, with a match in the same
+     location as the mate's chromosome.
+   - =*-clusters.fasta.clstr= Cluster summary file produced by
+     =cd-hit=. This contains representative sequences, and those
+     sequences clustered with them. This file is used to get a count
+     of the cluster density. Translocation partners should have high
+     cluster density.
+   - =*-clipped.fasta= duplicates =*-hybrids.fasta=.
+
+#+begin_src R +n :tangle analysis.R  
+  # make a results directory
+  results.dir <- check.dir(file.path(outdir, "results"))
+
+  sm.cands <- local({
+    # Make ragged list cands more output-friendly
+    tmp <- sapply(cands, function(x) do.call(rbind, x))
+    d <- do.call(rbind, lapply(names(tmp), function(x) {
+      d <- tmp[[x]]
+      ranges <- do.call(rbind, d[, 1])
+      counts <- do.call(rbind, d[, 2])
+      cbind(x, ranges, counts)
+    }))
+    
+    d <- as.data.frame(d, row.names=FALSE)
+    colnames(d) <- c('chromosome', 'lower.pos', 'upper.pos', 'count')
+    
+    fn <- file.path(results.dir, 'split-mates-candiatates.txt')
+    write.table(as.matrix(d), fn, row.names=FALSE, quote=FALSE, sep='\t')
+    d
+  })
+  print(sm.cands)
+  
+#+end_src
+
+Output clustered sequences with mapped mate and counts.
+
+#+begin_src R +n :tangle analysis.R 
+  cluster.cands <- local({
+    d <- clusters[clusters$count > 10, c('chr', 'seq', 'count')]
+    fn <- file.path(results.dir, "clustered-seqs.txt")
+    write.table(as.matrix(d), fn, row.names=FALSE, quote=FALSE, sep='\t')
+    d
+  })
+  print(cluster.cands)  
+#+end_src
 
 # order statistics?!
 # select mapped_chr, count(*) as count from unmapped_mates 
