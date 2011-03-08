@@ -14,7 +14,7 @@ TEST.MODE <- system('uname -s', intern=TRUE) == 'Darwin'
 # For testing and org-mode usesage.
 if (interactive() && TEST.MODE) {
   dbfile <- "CAGTACT.db"
-} else {
+} else if(!interactive()) {
   args <- commandArgs()
   arg.delim <- which(args == '--args') + 1
   args <- args[arg.delim:length(args)]
