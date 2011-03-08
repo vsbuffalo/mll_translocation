@@ -498,7 +498,7 @@ the .clstr file.
   
     return(unlist(clusters))
   }
-
+  
   all.clusters <- list()
   message("Processing cd-hit clustering results.")
   # Grab representative sequences and corresponding clstr files and process.
@@ -508,9 +508,9 @@ the .clstr file.
     clstr.file <- file.path(cluster.dir, sprintf("%s.clstr", fasta.file))
   
     d <- processClstrFile(clstr.file)
-    if (nrow(d) == 0)
+    if (length(d) == 0)
       next()
-
+  
     # process .clstr files
     rep.seqs <- as.data.frame(cbind(d))
   
@@ -519,6 +519,15 @@ the .clstr file.
       tmp <- readFASTA(fn, strip.descs=TRUE)
       headers <- lapply(tmp, function(x) x[[1]])
       seqs <- lapply(tmp, function(x) x[[2]])
+  
+      # check for non unique row names
+      if (length(uni <- unique(headers)) != length(headers)) {
+        warning("Removing clusters with non-unique headers!")
+        indx <- match(headers, uni)
+        headers <- headers[indx]
+        seqs <- seqs[indx]
+      }
+      
       tmp <- as.data.frame(cbind(seqs))
       rownames(tmp) <- headers
       tmp
@@ -535,6 +544,7 @@ the .clstr file.
   # bit of name mangling here...
   clusters <- do.call(rbind, all.clusters)
   rownames(clusters) <- NULL
+  
 #+end_src
 
 

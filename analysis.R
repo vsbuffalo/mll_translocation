@@ -454,7 +454,7 @@ for (fasta.file in dir(cluster.dir, pattern="\\-clusters.fasta$")) {
   clstr.file <- file.path(cluster.dir, sprintf("%s.clstr", fasta.file))
 
   d <- processClstrFile(clstr.file)
-  if (nrow(d) == 0)
+  if (length(d) == 0)
     next()
 
   # process .clstr files
@@ -465,6 +465,15 @@ for (fasta.file in dir(cluster.dir, pattern="\\-clusters.fasta$")) {
     tmp <- readFASTA(fn, strip.descs=TRUE)
     headers <- lapply(tmp, function(x) x[[1]])
     seqs <- lapply(tmp, function(x) x[[2]])
+
+    # check for non unique row names
+    if (length(uni <- unique(headers)) != length(headers)) {
+      warning("Removing clusters with non-unique headers!")
+      indx <- match(headers, uni)
+      headers <- headers[indx]
+      seqs <- seqs[indx]
+    }
+    
     tmp <- as.data.frame(cbind(seqs))
     rownames(tmp) <- headers
     tmp
