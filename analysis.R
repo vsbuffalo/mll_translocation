@@ -13,17 +13,17 @@ suppressMessages({
 # For testing and org-mode usesage.
 if (interactive()) {
   dbfile <- "CAGTACT.db"
-  
-  message(sprintf("Establishing database connection to %s", dbfile))
-  # establish database
-  drv <- dbDriver("SQLite")
-  con <- dbConnect(drv, dbname=dbfile)  
 } else {
   args <- commandArgs()
   arg.delim <- which(args == '--args') + 1
   args <- args[arg.delim:length(args)]
   dbfile <- args[1]
 }
+
+message(sprintf("Establishing database connection to %s", dbfile))
+# establish database
+drv <- dbDriver("SQLite")
+con <- dbConnect(drv, dbname=dbfile)
 
 ## ** Utility functions
 
