@@ -53,8 +53,13 @@ These functions are used frequently in the code.
    # on OS X doesn't load $PATH, so it will check all of these places
    # and return a string of the first place that returns a result.
    function(cmd) {
-     paths <- sapply(cmd, function(c) system(sprintf("which %s", c), 
+     if (version$minor < 12) {
+       paths <- sapply(cmd, function(c) system(sprintf("which %s", c)) == 0)
+     } else {
+       paths <- sapply(cmd, function(c) system(sprintf("which %s", c), 
                                              ignore.stdout=TRUE) == 0)
+     }
+     
      if (!any(paths))
        NA
      cmd[min(which(paths))]
@@ -73,6 +78,8 @@ These functions are used frequently in the code.
     if (!any(m))
       stop(sprintf("Reference in '%s' does not appear to be indexed.", refdir))
   }
+    
+  
 #+end_src
 
 ** Directory structure
