@@ -465,7 +465,7 @@ the .clstr file.
     chr <- strsplit(fasta.file, '-')[[1]][1]
     fn <- file.path(cluster.dir, fasta.file)
     cfn <- file.path(cluster.dir, sprintf("%s-clusters.fasta", chr))
-    ok <- system(sprintf("/usr/local/bin/cd-hit -i %s -o %s -g 1 -d 200 > /dev/null", fn, cfn))
+    ok <- system(sprintf("%s -i %s -o %s -g 1 -d 200 > /dev/null", cdhit.cmd, fn, cfn))
     stopifnot(ok == 0)
   }
   

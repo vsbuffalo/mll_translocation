@@ -5,10 +5,11 @@
 ## file should have a meaningful name, such as the barcode of a
 ## particular sample.
 
-require(RSQLite)
 suppressMessages({
   require(ggplot2)
-  require(Biostrings)})
+  require(Biostrings)
+  require(RSQLite)
+})
 
 # For testing and org-mode usesage.
 if (interactive()) {
@@ -19,7 +20,7 @@ if (interactive()) {
   args <- args[arg.delim:length(args)]
   dbfile <- args[1]
 }
-
+  
 message(sprintf("Establishing database connection to %s", dbfile))
 # establish database
 drv <- dbDriver("SQLite")
@@ -149,7 +150,7 @@ function(reads.df, clust.member.thresh=2) {
     return(NULL)
   pos <- reads.df$pos_2
   names(pos) <- pos
-  message("  Hierarchically clustering positions")
+  message("    running hclust() and dist() - this can take a while.")
   h = hclust(dist(pos))
   groups <- cutree(h, h=10000)
   groups.counts <- table(groups)
@@ -410,7 +411,7 @@ for (fasta.file in dir(cluster.dir, pattern="\\-clipped.fasta$")) {
   chr <- strsplit(fasta.file, '-')[[1]][1]
   fn <- file.path(cluster.dir, fasta.file)
   cfn <- file.path(cluster.dir, sprintf("%s-clusters.fasta", chr))
-  ok <- system(sprintf("/usr/local/bin/cd-hit -i %s -o %s -g 1 -d 200 > /dev/null", fn, cfn))
+  ok <- system(sprintf("%s -i %s -o %s -g 1 -d 200 > /dev/null", cdhit.cmd, fn, cfn))
   stopifnot(ok == 0)
 }
 
