@@ -161,7 +161,7 @@ the basename of the SQLite file and "-output", i.e. =CAGTACT-output=.
   rownames(counts) <- NULL
   
   fn <- file.path(results.dir, "split-mate-candidate-counts.txt")
-  write.table(counts, file, quote=FALSE, row.names=FALSE)
+  write.table(counts, fn, quote=FALSE, row.names=FALSE)
   print(counts)
   
 #+end_src

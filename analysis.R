@@ -137,7 +137,7 @@ counts <- all.counts[all.counts$count > count.thresh, ]
 rownames(counts) <- NULL
 
 fn <- file.path(results.dir, "split-mate-candidate-counts.txt")
-write.table(counts, file, quote=FALSE, row.names=FALSE)
+write.table(counts, fn, quote=FALSE, row.names=FALSE)
 print(counts)
 
 ## ** Positions of rearrangement candidate reads
