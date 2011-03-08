@@ -11,26 +11,27 @@ file should have a meaningful name, such as the barcode of a
 particular sample.
 
 #+begin_src R +n :results silent :tangle analysis.R
-   require(RSQLite)
-   suppressMessages({
-     require(ggplot2)
-     require(Biostrings)})
-   
-   # For testing and org-mode usesage.
-   if (interactive()) {
-     dbfile <- "CAGTACT.db"
-   } else {
-     args <- commandArgs()
-     arg.delim <- which(args == '--args') + 1
-     args <- args[arg.delim:length(args)]
-     dbfile <- args[1]
-   }
-
-   message(sprintf("Establishing database connection to %s", dbfile))
-   # establish database
-   drv <- dbDriver("SQLite")
-   con <- dbConnect(drv, dbname=dbfile)  
-
+  suppressMessages({
+    require(ggplot2)
+    require(Biostrings)
+    require(RSQLite)
+  })
+  
+  # For testing and org-mode usesage.
+  if (interactive()) {
+    dbfile <- "CAGTACT.db"
+  } else {
+    args <- commandArgs()
+    arg.delim <- which(args == '--args') + 1
+    args <- args[arg.delim:length(args)]
+    dbfile <- args[1]
+  }
+    
+  message(sprintf("Establishing database connection to %s", dbfile))
+  # establish database
+  drv <- dbDriver("SQLite")
+  con <- dbConnect(drv, dbname=dbfile)  
+    
 #+end_src
 
 ** Utility functions
@@ -80,6 +81,18 @@ These functions are used frequently in the code.
       stop(sprintf("Reference in '%s' does not appear to be indexed.", refdir))
   }
     
+  writeFASTA =
+  # Write a FASTA file, given headers and sequences. Mimics the version
+  # from Biostrings, but faster
+  function(x, file="", desc=NULL) {
+    if (length(desc) != length(x))
+      stop("Arguments for headers and sequences must be same length.")
+    con <- file(file, open='w')
+    for (j in 1:length(desc)) {
+      cat(sprintf(">%s\n%s\n", desc[j], x[j]), file=con)
+    }
+    close(con)
+  }
   
 #+end_src
 
@@ -172,6 +185,7 @@ candidate? Hierarchical clustering is used to group by distance.
       return(NULL)
     pos <- reads.df$pos_2
     names(pos) <- pos
+    message("    running hclust() and dist() - this can take a while.")
     h = hclust(dist(pos))
     groups <- cutree(h, h=10000)
     groups.counts <- table(groups)

@@ -70,6 +70,19 @@ function(refdir) {
   if (!any(m))
     stop(sprintf("Reference in '%s' does not appear to be indexed.", refdir))
 }
+  
+writeFASTA =
+# Write a FASTA file, given headers and sequences. Mimics the version
+# from Biostrings, but faster
+function(x, file="", desc=NULL) {
+  if (length(desc) != length(x))
+    stop("Arguments for headers and sequences must be same length.")
+  con <- file(file, open='w')
+  for (j in 1:length(desc)) {
+    cat(sprintf(">%s\n%s\n", desc[j], x[j]), file=con)
+  }
+  close(con)
+}
 
 ## ** Directory structure
 
@@ -136,6 +149,7 @@ function(reads.df, clust.member.thresh=2) {
     return(NULL)
   pos <- reads.df$pos_2
   names(pos) <- pos
+  message("  Hierarchically clustering positions")
   h = hclust(dist(pos))
   groups <- cutree(h, h=10000)
   groups.counts <- table(groups)
