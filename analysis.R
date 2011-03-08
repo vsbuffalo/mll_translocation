@@ -453,8 +453,12 @@ for (fasta.file in dir(cluster.dir, pattern="\\-clusters.fasta$")) {
   fn <- file.path(cluster.dir, fasta.file)
   clstr.file <- file.path(cluster.dir, sprintf("%s.clstr", fasta.file))
 
+  d <- cbind(processClstrFile(clstr.file))
+  if (nrow(d) == 0)
+    next()
+
   # process .clstr files
-  rep.seqs <- as.data.frame(cbind(processClstrFile(clstr.file)))
+  rep.seqs <- as.data.frame()
 
   # read FASTA file
   clusters <- local({
