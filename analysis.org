@@ -6,21 +6,82 @@
 
 * Prerequistes
 
+The input data is a SQLite database, produced by =sampe2db.py=. This
+file should have a meaningful name, such as the barcode of a
+particular sample.
+
 #+begin_src R +n :results silent :tangle analysis.R
-  require(RSQLite)
-  suppressMessages({
-    require(ggplot2)
-    require(Biostrings)})
-  
-  dbfile <- "samdb"
-  
-  # establish database
-  drv <- dbDriver("SQLite")
-  con <- dbConnect(drv, dbname=dbfile)  
-    
-  
+   require(RSQLite)
+   suppressMessages({
+     require(ggplot2)
+     require(Biostrings)})
+   
+   # For testing and org-mode usesage.
+   if (interactive()) {
+     dbfile <- "CAGTACT.db"
+   
+     # establish database
+     drv <- dbDriver("SQLite")
+     con <- dbConnect(drv, dbname=dbfile)  
+   } else {
+     args <- commandArgs()
+     arg.delim <- which(args == '--args') + 1
+     args <- args[arg.delim:length(args)]
+     dbfile <- args[1]
+   }
 #+end_src
 
+** Utility functions
+
+These functions are used frequently in the code.
+
+#+begin_src R +n :results silent :tangle analysis.R
+  check.dir =
+  # if a directory doesn't exist, make it
+  function(dir) {
+    if (!file.exists(dir)) {
+      message(sprintf("Making directory '%s'", dir))
+      system(sprintf("mkdir -p %s", dir))
+    }
+    dir
+  }
+ 
+  in.path =
+   # Use a system call to which to check if a program is in the
+   # path. cmd can be a vector of places to look. This is because Emacs
+   # on OS X doesn't load $PATH, so it will check all of these places
+   # and return a string of the first place that returns a result.
+   function(cmd) {
+     paths <- sapply(cmd, function(c) system(sprintf("which %s", c)) == 0)
+     if (!any(paths))
+       NA
+     cmd[min(which(paths))]
+   }
+#+end_src
+
+** Directory structure
+
+Everything in this analysis is contained in a directory named after
+the basename of the SQLite file and "-output", i.e. =CAGTACT-output=.
+
+#+begin_src R +n :results silent :tangle analysis.R 
+  outdir <- check.dir(sprintf("%s-output", basename(dbfile)))
+#+end_src
+
+** Check required programs are in path
+
+#+begin_src R +n :results silent :tangle analysis.R
+  # check explicit path - allows this to work with org-mode with Emacs
+  bwa.cmd <- in.path(c("bwa", "/usr/local/bin/bwa"))
+  py.cmd <- in.path(c("python", "/usr/bin/python"))
+  cdhit.cmd <- in.path(c("cd-hit", "/usr/local/bin/cd-hit"))
+  
+  required.cmd <- c(bwa=bwa.cmd, python=py.cmd, cdhit=cdhit.cmd)
+  if (any(is.na(required.cmd))) {
+    failed <- paste(names(required.cmd)[which(is.na(required.cmd))], collapse=',')
+    stop(sprintf("The following required programs could not be found in path: %s", failed))
+  }
+#+end_src
 
 * Split Mates: extracting candidate rearrangement partners
 
@@ -111,6 +172,9 @@ candidate? Hierarchical clustering is used to group by distance.
   names(cands) <- counts$chr_2
 #+end_src
 
+** Build a mapped mate assembled consensus sequence from mapping positions
+
+
 * Split Reads: extracting possible fusion sites and confirming rearrangement partners
 
 The other information in the paired end reads mapped to the entire
@@ -180,18 +244,6 @@ rearrangement partner).
     close(con)
   }
   
-  
-  check.dir =
-  # if a directory doesn't exist, make it
-  function(dir) {
-    if (!file.exists(dir)) {
-      message(sprintf("Making directory '%s'", dir))
-      system(sprintf("mkdir -p %s", dir))
-    }
-    dir
-  }
-  
-  
   query <- "
   SELECT mapped_chr as chr, name as header, unmapped_seq as seq 
   FROM unmapped_mates WHERE mapped_mqual > 30 ORDER BY mapped_chr;"
@@ -212,14 +264,6 @@ rearrangement partner).
 ** BWA BWASW alignment of unmapped sequences
 
 #+begin_src R +n :tangle analysis.R
-  in.path =
-  # Use a system call to which to check if a program is in the path.
-  function(cmd) {
-    if (system(sprintf("which %s", cmd)) != 0)
-      FALSE
-    TRUE
-  }
-  
   check.bwa = 
   # check that the reference is properly indexed
   function(refdir) {
@@ -233,11 +277,7 @@ rearrangement partner).
     if (!any(m))
       stop(sprintf("Reference in '%s' does not appear to be indexed.", refdir))
   }
-  
-  # check explicit path - allows this to work with org-mode with Emacs
-  if (!any(c(in.path("bwa"), in.path("/usr/local/bin/bwa"))))
-    stop("bwa not in path.")
-  
+
   # check the reference has been indexed
   refdir <- "mll_template"
   ref <- file.path(refdir, "mll.fasta")
@@ -265,9 +305,6 @@ mapped reads with a CIGAR string of the format *x*M*y*S where *x* and
 This is done with =find_fusion.py= which uses pysam.
 
 #+begin_src R +n :tangle analysis.R
-  if (!any(c(in.path("python"), in.path("/usr/bin/python"))))
-    stop("python not in path.")
-
   system(sprintf("ls %s/*sam | xargs -n1 python find_fusion.py", aln.dir))
 #+end_src
 
@@ -364,9 +401,6 @@ into a single representative sequence, we extract the information from
 the .clstr file.
 
 #+begin_src R +n
-  if (!any(c(in.path("cd-hit"), in.path("/usr/local/bin/cd-hit"))))
-    stop("cd-hit not in path.")
-  
   for (fasta.file in dir(cluster.dir, pattern="\\-clipped.fasta$")) {
     chr <- strsplit(fasta.file, '-')[[1]][1]
     fn <- file.path(cluster.dir, fasta.file)
