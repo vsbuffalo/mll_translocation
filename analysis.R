@@ -198,7 +198,7 @@ cands = apply(counts, 1, function(row) {
   return(extractCandidates(d))
 })
 
-full.entries <- !unlist(lapply(cands, is.null))
+full.entries <- !sapply(cands, is.null)
 cands <- cands[full.entries]
 names(cands) <- counts$chr_2[full.entries]
 
@@ -402,7 +402,7 @@ if (interactive()) {
 split.cands <- split.df$chromosome[split.df$chromosome!='chr11']
 
 query <- "
-SELECT chr, name, softclipped FROM hybrid_candidates
+SELECT chr, name, split, softclipped FROM hybrid_candidates
 WHERE chr IN (%s) GROUP BY name;"
 
 message("Querying fusion candidate hybrid reads from database, writing FASTA files.")
@@ -417,7 +417,7 @@ for (chr in names(seqs.by.chr)) {
   fn <- file.path(cluster.dir, sprintf("%s-clipped.fasta", chr))
   s <- seqs.by.chr[[chr]]
   if (nrow(s) > 0)
-    writeFASTA(s$softclipped, fn, desc=s$name)
+    writeFASTA(s$softclipped, fn, desc=paste(s$name, s$split, sep=';;'))
 }
 
 ## ** Soft-clipped sequence clustering
@@ -498,8 +498,9 @@ for (fasta.file in dir(cluster.dir, pattern="\\-clusters.fasta$")) {
   clusters <- merge(clusters, rep.seqs, by.x=0, by.y=0)
   clusters <- cbind(chr, clusters)
   colnames(clusters) <- c('chr', 'name', 'seq', 'count')
+  clusters$split <- unlist(sapply(strsplit(clusters$name, ';;'), function(x) x[2]))
   all.clusters[[chr]] <- clusters
-  print(clusters[clusters$count > 10, c('chr', 'seq', 'count')])
+  print(clusters[clusters$count > 10, c('chr', 'seq', 'count', 'split')])
 }
 
 # bit of name mangling here...
@@ -551,7 +552,7 @@ sm.cands <- local({
     do.call(rbind, lapply(x, function(y)
                           c(min(y$range), max(y$range), y$count, y$strand)))
   })
-  chr.names <- rep(names(d), unlist(lapply(d, nrow)))
+  chr.names <- rep(names(d), sapply(d, nrow))
   d <- cbind(chr.names, do.call(rbind, d))
   d <- as.data.frame(d)
   
@@ -566,7 +567,7 @@ print(sm.cands)
 ## Output clustered sequences with mapped mate and counts.
 
 cluster.cands <- local({
-  d <- clusters[clusters$count > 10, c('chr', 'seq', 'count')]
+  d <- clusters[clusters$count > 10, c('chr', 'seq', 'count', 'split')]
   fn <- file.path(results.dir, "clustered-seqs.txt")
   write.table(as.matrix(d), fn, row.names=FALSE, quote=FALSE, sep='\t')
   d

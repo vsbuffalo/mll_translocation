@@ -31,7 +31,7 @@ def extract_fusion_candidates(filename, outdir="", statsdir=""):
     correct = 0
     mapped = 0
     basename = os.path.basename(filename).split('.')[0]
-    fasta_file = open(os.path.join(outdir, "%s-hybrids.fasta" % basename), 'w')
+    #fasta_file = open(os.path.join(outdir, "%s-hybrids.fasta" % basename), 'w')
     with open(os.path.join(outdir, "%s-fusion-candidates.txt" % basename), 'w') as f:
         for read in pysam.Samfile(filename):
             total += 1
@@ -55,7 +55,7 @@ def extract_fusion_candidates(filename, outdir="", statsdir=""):
                     correct += 1
                     f.write("%s\t%s\t%s\t%s\t%s\t%s\n" % (read.qname, break_pos,
                                                           matched, cut, strand, read.mapq))
-                    fasta_file.write(">%s\n%s\n" % (read.qname, cut))
+                    #fasta_file.write(">%s;;%s\n%s\n" % (read.qname, break_pos, cut))
                 else:
                     not_xMyS += 1
             else:
@@ -67,7 +67,7 @@ def extract_fusion_candidates(filename, outdir="", statsdir=""):
                     correct += 1
                     f.write("%s\t%s\t%s\t%s\t%s\t%s\n" % (read.qname, break_pos,
                                                           matched, cut, strand, read.mapq))
-                    fasta_file.write(">%s\n%s\n" % (read.qname, cut))
+                    #fasta_file.write(">%s;;%s\n%s\n" % (read.qname, break_pos, cut))
                 else:
                     not_xMyS += 1
 
