@@ -235,7 +235,7 @@ candidate? Hierarchical clustering is used to group by distance.
 
   cands <- cands[which(!is.null(cands))]
   
-  names(cands) <- counts$chr_2
+  names(cands) <- counts$chr_2[which(!is.null(cands))]
 #+end_src
 
 ** Build a mapped mate assembled consensus sequence from mapping positions

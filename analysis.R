@@ -199,7 +199,7 @@ cands = apply(counts, 1, function(row) {
 
 cands <- cands[which(!is.null(cands))]
 
-names(cands) <- counts$chr_2
+names(cands) <- counts$chr_2[which(!is.null(cands))]
 
 ## ** Build a mapped mate assembled consensus sequence from mapping positions
 
