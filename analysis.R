@@ -168,13 +168,14 @@ function(reads.df, clust.member.thresh=2) {
   if (length(keep) == 0)
     return(NULL)
   
+  stopifnot(length(unique(reads.df$strand_2)) == 1)
   
   candidate.pos <- lapply(as.integer(names(keep)), function(x) {
     y <- groups == x
     r <- range(as.integer(names(groups))[y])
     if (any(is.na(r)))
       stop("Range contains NA!")
-    return(list(range=r, count=sum(y)))
+    return(list(range=r, count=sum(y), strand=reads.df$strand_2[1]))
   })
 
   return(candidate.pos)
@@ -546,14 +547,15 @@ rownames(clusters) <- NULL
 
 sm.cands <- local({
   # Make ragged list cands more output-friendly
-  d <- lapply(names(cands), function(x) {
-    tmp <- cands[[x]]
-    do.call(rbind, lapply(tmp, function(y)
-                          c(x, min(y$range), max(y$range), y$count)))
+  d <- lapply(cands, function(x) {
+    do.call(rbind, lapply(x, function(y)
+                          c(min(y$range), max(y$range), y$count, y$strand)))
   })
-  d <- as.data.frame(do.call(rbind, d))
+  chr.names <- rep(names(d), unlist(lapply(d, nrow)))
+  d <- cbind(chr.names, do.call(rbind, d))
+  d <- as.data.frame(d)
   
-  colnames(d) <- c('chromosome', 'lower.pos', 'upper.pos', 'count')
+  colnames(d) <- c('chromosome', 'lower.pos', 'upper.pos', 'count', 'strand')
   
   fn <- file.path(results.dir, 'split-mates-candiatates.txt')
   write.table(as.matrix(d), fn, row.names=FALSE, quote=FALSE, sep='\t')
