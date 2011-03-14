@@ -551,9 +551,8 @@ sm.cands <- local({
     do.call(rbind, lapply(tmp, function(y)
                           c(x, min(y$range), max(y$range), y$count)))
   })
-  d <- do.call(rbind, d)  
+  d <- as.data.frame(do.call(rbind, d))
   
-  d <- as.data.frame(d, row.names=FALSE)
   colnames(d) <- c('chromosome', 'lower.pos', 'upper.pos', 'count')
   
   fn <- file.path(results.dir, 'split-mates-candiatates.txt')
