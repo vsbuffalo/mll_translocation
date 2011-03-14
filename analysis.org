@@ -193,10 +193,9 @@ candidate? Hierarchical clustering is used to group by distance.
     pos <- reads.df$pos_2
     names(pos) <- pos
     message("    running hclust() and dist() - this can take a while.")
-    
-    max.clust.len <- 600
-    if (length(pos) > max.clust.len)
-       pos <- pos[sample(1:length(pos), max.clust.len)]
+
+    pos <- unique(pos)
+    names(pos) <- pos
     h = hclust(dist(pos))
     groups <- cutree(h, h=10000)
     groups.counts <- table(groups)
@@ -372,7 +371,6 @@ rearrangement partner).
     system(sprintf(bwarun, bwa.cmd, ref, file.path(fusion.read.dir, fasta.file), aln.file))
   }
 #+end_src
-
 
 ** Processing alignment results with =find_fusion.py=
 
