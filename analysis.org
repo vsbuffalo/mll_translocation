@@ -193,7 +193,7 @@ candidate? Hierarchical clustering is used to group by distance.
     pos <- reads.df$pos_2
     names(pos) <- pos
     message("    running hclust() and dist() - this can take a while.")
-
+  
     pos <- unique(pos)
     names(pos) <- pos
     h = hclust(dist(pos))
@@ -232,10 +232,11 @@ candidate? Hierarchical clustering is used to group by distance.
     d <- dbGetQuery(con, sprintf(read.query, row[2], row[4]))
     return(extractCandidates(d))
   })
-
-  cands <- cands[which(!is.null(cands))]
   
-  names(cands) <- counts$chr_2[which(!is.null(cands))]
+  full.entries <- !unlist(lapply(cands, is.null))
+  cands <- cands[full.entries]
+  names(cands) <- counts$chr_2[full.entries]
+  
 #+end_src
 
 ** Build a mapped mate assembled consensus sequence from mapping positions
