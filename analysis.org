@@ -232,6 +232,8 @@ candidate? Hierarchical clustering is used to group by distance.
     d <- dbGetQuery(con, sprintf(read.query, row[2], row[4]))
     return(extractCandidates(d))
   })
+
+  cands <- cands[which(!is.null(cands))]
   
   names(cands) <- counts$chr_2
 #+end_src

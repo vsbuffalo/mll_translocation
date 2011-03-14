@@ -197,6 +197,8 @@ cands = apply(counts, 1, function(row) {
   return(extractCandidates(d))
 })
 
+cands <- cands[which(!is.null(cands))]
+
 names(cands) <- counts$chr_2
 
 ## ** Build a mapped mate assembled consensus sequence from mapping positions
