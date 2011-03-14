@@ -605,13 +605,12 @@ Now, output all results. The =basename-output= directory contains:
 #+begin_src R +n :tangle analysis.R  
   sm.cands <- local({
     # Make ragged list cands more output-friendly
-    tmp <- sapply(cands, function(x) do.call(rbind, x))
-    d <- do.call(rbind, lapply(names(tmp), function(x) {
-      d <- tmp[[x]]
-      ranges <- do.call(rbind, d[, 1])
-      counts <- do.call(rbind, d[, 2])
-      cbind(x, ranges, counts)
-    }))
+    d <- lapply(names(cands), function(x) {
+      tmp <- cands[[x]]
+      do.call(rbind, lapply(tmp, function(y)
+                            c(x, min(y$range), max(y$range), y$count)))
+    })
+    d <- do.call(rbind, d)  
     
     d <- as.data.frame(d, row.names=FALSE)
     colnames(d) <- c('chromosome', 'lower.pos', 'upper.pos', 'count')
