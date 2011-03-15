@@ -549,11 +549,11 @@ print(cluster.cands)
 cluster.aln.dir <- check.dir(file.path(results.dir, "cluster-alignments"))
 fn <- file.path(cluster.aln.dir, "cluster-seqs.fasta")
 writeFASTA(cluster.cands$seq, fn, desc=rownames(cluster.cands))
-
+edit.dist <- 8
 message("Running BWA aln on cluster sequences (to human genome).")
-bwarun <- "%s aln %s %s > %s 2> /dev/null"
+bwarun <- "%s aln -n %s %s %s > %s 2> /dev/null"
 aln.file <- file.path(cluster.aln.dir, "cluster-seqs.sai")
-system(sprintf(bwarun, bwa.cmd, hg.ref, fn, aln.file))
+system(sprintf(bwarun, bwa.cmd, edit.dist, hg.ref, fn, aln.file))
 #bwa samse database.fasta aln_sa.sai short_read.fastq > aln.sam
 system(sprintf("%s samse %s %s %s > %s",
                bwa.cmd, hg.ref, aln.file, fn,
