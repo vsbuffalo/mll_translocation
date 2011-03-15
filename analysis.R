@@ -548,7 +548,7 @@ print(cluster.cands)
 
 cluster.aln.dir <- check.dir(file.path(results.dir, "cluster-alignments"))
 fn <- file.path(cluster.aln.dir, "cluster-seqs.fasta")
-writeFasta(cluster.cands$seq, fn, desc=rownames(cluster.cands))
+writeFASTA(cluster.cands$seq, fn, desc=rownames(cluster.cands))
 
 message("Running BWA aln on cluster sequences (to human genome).")
 bwarun <- "%s aln %s %s > %s 2> /dev/null"
