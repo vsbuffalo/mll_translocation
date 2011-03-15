@@ -121,7 +121,7 @@ check.bwa(refdir)
 if (!TEST.MODE) {
   message("Checking human genome reference is properly indexed for BWA.")
   hg.refdir <- "/classico/jfass/projects/Vaughan/ref_hg19/"
-  hg.ref <- file.path(refdir, "hg19_24chrom.fasta")
+  hg.ref <- file.path(hg.refdir, "hg19_24chrom.fasta")
   check.bwa(hg.refdir)
 }
 

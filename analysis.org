@@ -137,7 +137,7 @@ the basename of the SQLite file and "-output", i.e. =CAGTACT-output=.
   if (!TEST.MODE) {
     message("Checking human genome reference is properly indexed for BWA.")
     hg.refdir <- "/classico/jfass/projects/Vaughan/ref_hg19/"
-    hg.ref <- file.path(refdir, "hg19_24chrom.fasta")
+    hg.ref <- file.path(hg.refdir, "hg19_24chrom.fasta")
     check.bwa(hg.refdir)
   }
   
