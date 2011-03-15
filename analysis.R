@@ -112,11 +112,18 @@ if (any(is.na(required.cmd))) {
 
 ## ** Check BWA reference is indexed
 
-message("Checking BWA reference is properly indexed.")
+message("Checking MLL template reference is properly indexed for BWA.")
 # check the reference has been indexed - this should be in the main directory
 refdir <- "mll_template"
 ref <- file.path(refdir, "mll.fasta")
 check.bwa(refdir)
+
+if (!TEST.MODE) {
+  message("Checking human genome reference is properly indexed for BWA.")
+  hg.refdir <- "/classico/jfass/projects/Vaughan/ref_hg19/"
+  hg.ref <- file.path(refdir, "hg19_24chrom.fasta")
+  check.bwa(hg.refdir)
+}
 
 ## ** Raw counts of reads mapped with one forward mate to chr11 and another mate mapped elsewhere.
 
@@ -507,44 +514,7 @@ for (fasta.file in dir(cluster.dir, pattern="\\-clusters.fasta$")) {
 clusters <- do.call(rbind, all.clusters)
 rownames(clusters) <- NULL
 
-## * Final Output
-
-## Now, output all results. The =basename-output= directory contains:
-
-##  - =assembly=
-##    - =*.fasta*= files of the mates in which the other mate maps to
-##      chromosome 11 (forward strand), with headers of the mapping
-##      position. We may want to just use the mapped mate in split-read
-##      mates.
-##    - =consensuses= assemblies of the mates done by position.
-##  - =fusion-reads=
-##    - =*.fasta= files containing the unmapped mates (mapped mate
-##      chromosome is in the filename).
-##    - =alignments=
-##      - =*.sam= =BWA bwasw= alignment of the unmapped mates to the
-##        reference (MLL) template. These should produce
-##        partially-aligned sequences, with soft-clipped sequence being
-##        that of the rearrangement partner in the case that the read
-##        spans the fusion site.
-##      - =*-fusion-candidates.txt= tab delimited output from
-##        =find_fusion.py=, which parses the SAM mapping file to find
-##        mappings with the cigar string in a *x*M*y*S format, which
-##        corresponds to a soft-clipped 3'-end sequence. The strand in
-##        the translocated case should be 'forward', and the position
-##        around 215.
-##      - =*-hybrids.fasta= The soft-clipped portions of alignment, used
-##        for clustering.
-##  - =clusters=
-##    - =*-clusters.fasta= clustered (with =cd-hit= tail
-##      sequences). Longer sequences from the rearrangement partner
-##      should BLAT to the Human Genome, with a match in the same
-##      location as the mate's chromosome.
-##    - =*-clusters.fasta.clstr= Cluster summary file produced by
-##      =cd-hit=. This contains representative sequences, and those
-##      sequences clustered with them. This file is used to get a count
-##      of the cluster density. Translocation partners should have high
-##      cluster density.
-##    - =*-clipped.fasta= duplicates =*-hybrids.fasta=.
+## * Write results tables
 
 sm.cands <- local({
   # Make ragged list cands more output-friendly
@@ -573,3 +543,17 @@ cluster.cands <- local({
   d
 })
 print(cluster.cands)
+
+## * Align fusion candidate sequences to human genome
+
+cluster.aln.dir <- check.dir(file.path(results.dir, "cluster-alignments"))
+fn <- file.path(cluster.aln.dir, "cluster-seqs.fasta")
+writeFasta(cluster.cands$seq, fn, desc=rownames(cluster.cands))
+
+message("Running BWA aln on cluster sequences (to human genome).")
+bwarun <- "%s aln %s %s > %s 2> /dev/null"
+aln.file <- file.path(cluster.aln.dir, "cluster-seqs.sai")
+system(sprintf(bwarun, bwa.cmd, hg.ref, "cluster-seqs.fasta", aln.file))
+#bwa samse database.fasta aln_sa.sai short_read.fastq > aln.sam
+system(sprintf("%s samse %s cluster-seqs.sai cluster-seqs.fasta > cluster-seqs.sam",
+               bwa.cmd, hg.ref))

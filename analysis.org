@@ -128,11 +128,19 @@ the basename of the SQLite file and "-output", i.e. =CAGTACT-output=.
 ** Check BWA reference is indexed
 
 #+begin_src R +n :tangle analysis.R
-  message("Checking BWA reference is properly indexed.")
+  message("Checking MLL template reference is properly indexed for BWA.")
   # check the reference has been indexed - this should be in the main directory
   refdir <- "mll_template"
   ref <- file.path(refdir, "mll.fasta")
   check.bwa(refdir)
+  
+  if (!TEST.MODE) {
+    message("Checking human genome reference is properly indexed for BWA.")
+    hg.refdir <- "/classico/jfass/projects/Vaughan/ref_hg19/"
+    hg.ref <- file.path(refdir, "hg19_24chrom.fasta")
+    check.bwa(hg.refdir)
+  }
+  
 #+end_src
 
 * Split Mates: extracting candidate rearrangement partners
@@ -566,6 +574,58 @@ the .clstr file.
 #+end_src
 
 
+* Write results tables
+#+begin_src R +n :tangle analysis.R  
+  sm.cands <- local({
+    # Make ragged list cands more output-friendly
+    d <- lapply(cands, function(x) {
+      do.call(rbind, lapply(x, function(y)
+                            c(min(y$range), max(y$range), y$count, y$strand)))
+    })
+    chr.names <- rep(names(d), sapply(d, nrow))
+    d <- cbind(chr.names, do.call(rbind, d))
+    d <- as.data.frame(d)
+    
+    colnames(d) <- c('chromosome', 'lower.pos', 'upper.pos', 'count', 'strand')
+    
+    fn <- file.path(results.dir, 'split-mates-candiatates.txt')
+    write.table(as.matrix(d), fn, row.names=FALSE, quote=FALSE, sep='\t')
+    d
+  })
+  print(sm.cands)
+  
+#+end_src
+
+Output clustered sequences with mapped mate and counts.
+
+#+begin_src R +n :tangle analysis.R 
+  cluster.cands <- local({
+    d <- clusters[clusters$count > 10, c('chr', 'seq', 'count', 'split')]
+    fn <- file.path(results.dir, "clustered-seqs.txt")
+    write.table(as.matrix(d), fn, row.names=FALSE, quote=FALSE, sep='\t')
+    d
+  })
+  print(cluster.cands)  
+#+end_src
+
+
+* Align fusion candidate sequences to human genome
+
+#+begin_src R +n :tangle analysis.R
+  cluster.aln.dir <- check.dir(file.path(results.dir, "cluster-alignments"))
+  fn <- file.path(cluster.aln.dir, "cluster-seqs.fasta")
+  writeFasta(cluster.cands$seq, fn, desc=rownames(cluster.cands))
+  
+  message("Running BWA aln on cluster sequences (to human genome).")
+  bwarun <- "%s aln %s %s > %s 2> /dev/null"
+  aln.file <- file.path(cluster.aln.dir, "cluster-seqs.sai")
+  system(sprintf(bwarun, bwa.cmd, hg.ref, "cluster-seqs.fasta", aln.file))
+  #bwa samse database.fasta aln_sa.sai short_read.fastq > aln.sam
+  system(sprintf("%s samse %s cluster-seqs.sai cluster-seqs.fasta > cluster-seqs.sam",
+                 bwa.cmd, hg.ref))
+#+end_src
+
+
 * Final Output
 
 Now, output all results. The =basename-output= directory contains:
@@ -605,38 +665,6 @@ Now, output all results. The =basename-output= directory contains:
      cluster density.
    - =*-clipped.fasta= duplicates =*-hybrids.fasta=.
 
-#+begin_src R +n :tangle analysis.R  
-  sm.cands <- local({
-    # Make ragged list cands more output-friendly
-    d <- lapply(cands, function(x) {
-      do.call(rbind, lapply(x, function(y)
-                            c(min(y$range), max(y$range), y$count, y$strand)))
-    })
-    chr.names <- rep(names(d), sapply(d, nrow))
-    d <- cbind(chr.names, do.call(rbind, d))
-    d <- as.data.frame(d)
-    
-    colnames(d) <- c('chromosome', 'lower.pos', 'upper.pos', 'count', 'strand')
-    
-    fn <- file.path(results.dir, 'split-mates-candiatates.txt')
-    write.table(as.matrix(d), fn, row.names=FALSE, quote=FALSE, sep='\t')
-    d
-  })
-  print(sm.cands)
-  
-#+end_src
-
-Output clustered sequences with mapped mate and counts.
-
-#+begin_src R +n :tangle analysis.R 
-  cluster.cands <- local({
-    d <- clusters[clusters$count > 10, c('chr', 'seq', 'count', 'split')]
-    fn <- file.path(results.dir, "clustered-seqs.txt")
-    write.table(as.matrix(d), fn, row.names=FALSE, quote=FALSE, sep='\t')
-    d
-  })
-  print(cluster.cands)  
-#+end_src
 
 # order statistics?!
 # select mapped_chr, count(*) as count from unmapped_mates 
