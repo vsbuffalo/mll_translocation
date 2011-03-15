@@ -634,3 +634,17 @@ dbGetQuery(con, tbl.query)
 
 ok <- dbWriteTable(con, tbl.name, sm.cands, append=TRUE, row.names=FALSE)
 stopifnot(ok)
+
+## * Query =mapped_cluster= and =split_mate_candidates= tables looking for best candidates
+
+query <- "SELECT mc.id, mc.chr, mc.pos, mc.count, mc.split,
+mc.cigar, mc.strand, mc.mapq, smc.count, smc.strand,
+smc.lower_pos, smc.upper_pos
+FROM mapped_clusters AS mc, split_mate_candidates AS smc
+WHERE mc.chr = smc.chr AND
+mc.pos >= smc.lower_pos-400 AND mc.pos <= smc.upper_pos+400;"
+
+message("Querying mapped_clusters and split_mate_candidates for consistent candidates.")
+top.cands <- dbGetQuery(con, query)
+
+write.table(file.path(results.dir, "top-candidates.txt"), header=TRUE, row.names=FALSE, quote=FALSE)
