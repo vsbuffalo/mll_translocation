@@ -136,7 +136,7 @@ the basename of the SQLite file and "-output", i.e. =CAGTACT-output=.
   
   if (!TEST.MODE) {
     message("Checking human genome reference is properly indexed for BWA.")
-    hg.refdir <- "/classico/jfass/projects/Vaughan/ref_hg19/"
+    hg.refdir <- "/classico/jfass/projects/Vaughan/ref_hg19"
     hg.ref <- file.path(hg.refdir, "hg19_24chrom.fasta")
     check.bwa(hg.refdir)
   }
@@ -619,10 +619,10 @@ Output clustered sequences with mapped mate and counts.
   message("Running BWA aln on cluster sequences (to human genome).")
   bwarun <- "%s aln %s %s > %s 2> /dev/null"
   aln.file <- file.path(cluster.aln.dir, "cluster-seqs.sai")
-  system(sprintf(bwarun, bwa.cmd, hg.ref, "cluster-seqs.fasta", aln.file))
+  system(sprintf(bwarun, bwa.cmd, hg.ref, fn, aln.file))
   #bwa samse database.fasta aln_sa.sai short_read.fastq > aln.sam
-  system(sprintf("%s samse %s cluster-seqs.sai cluster-seqs.fasta > cluster-seqs.sam",
-                 bwa.cmd, hg.ref))
+  system(sprintf("%s samse %s cluster-seqs.sai %s > cluster-seqs.sam",
+                 bwa.cmd, hg.ref, fn))
 #+end_src
 
 
