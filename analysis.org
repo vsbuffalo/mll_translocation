@@ -621,8 +621,10 @@ Output clustered sequences with mapped mate and counts.
   aln.file <- file.path(cluster.aln.dir, "cluster-seqs.sai")
   system(sprintf(bwarun, bwa.cmd, hg.ref, fn, aln.file))
   #bwa samse database.fasta aln_sa.sai short_read.fastq > aln.sam
-  system(sprintf("%s samse %s cluster-seqs.sai %s > cluster-seqs.sam",
-                 bwa.cmd, hg.ref, fn))
+  system(sprintf("%s samse %s %s %s > %s",
+                 bwa.cmd, hg.ref, aln.file, fn,
+                 file.path(cluster.aln.dir, "cluster-seqs.sam")))
+  
 #+end_src
 
 
