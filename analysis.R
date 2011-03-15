@@ -647,4 +647,4 @@ mc.pos >= smc.lower_pos-400 AND mc.pos <= smc.upper_pos+400;"
 message("Querying mapped_clusters and split_mate_candidates for consistent candidates.")
 top.cands <- dbGetQuery(con, query)
 
-write.table(file.path(results.dir, "top-candidates.txt"), header=TRUE, row.names=FALSE, quote=FALSE)
+write.table(file.path(results.dir, "top-candidates.txt"), row.names=FALSE, quote=FALSE)
