@@ -546,15 +546,91 @@ print(cluster.cands)
 
 ## * Align fusion candidate sequences to human genome
 
+# These are kept outside because on testing machines, we can move the
+# approperiate files to test this code.
 cluster.aln.dir <- check.dir(file.path(results.dir, "cluster-alignments"))
-fn <- file.path(cluster.aln.dir, "cluster-seqs.fasta")
-writeFASTA(cluster.cands$seq, fn, desc=rownames(cluster.cands))
-edit.dist <- 8
-message("Running BWA aln on cluster sequences (to human genome).")
-bwarun <- "%s aln -n %s %s %s > %s 2> /dev/null"
-aln.file <- file.path(cluster.aln.dir, "cluster-seqs.sai")
-system(sprintf(bwarun, bwa.cmd, edit.dist, hg.ref, fn, aln.file))
-#bwa samse database.fasta aln_sa.sai short_read.fastq > aln.sam
-system(sprintf("%s samse %s %s %s > %s",
-               bwa.cmd, hg.ref, aln.file, fn,
-               file.path(cluster.aln.dir, "cluster-seqs.sam")))
+cluster.sam <- file.path(cluster.aln.dir, "cluster-seqs.sam")
+
+
+if (!TEST.MODE) {
+  fn <- file.path(cluster.aln.dir, "cluster-seqs.fasta")
+  writeFASTA(cluster.cands$seq, fn, desc=rownames(cluster.cands))
+  edit.dist <- 8
+  
+  message("Running BWA aln on cluster sequences (to human genome).")
+  bwarun <- "%s aln -n %s %s %s > %s 2> /dev/null"
+  aln.file <- file.path(cluster.aln.dir, "cluster-seqs.sai")
+  system(sprintf(bwarun, bwa.cmd, edit.dist, hg.ref, fn, aln.file))
+  
+  #bwa samse database.fasta aln_sa.sai short_read.fastq > aln.sam
+  system(sprintf("%s samse %s %s %s > %s",
+                 bwa.cmd, hg.ref, aln.file, fn, cluster.sam))
+}
+
+## Extract sequences from mapped clusters, and combine with
+## =cluster.cands= data.
+
+# Only run this code if this exists (i.e. not on test machine, or on
+# test machine but with the directory manually copied over to the
+# correct directory.
+if ("cluster-seqs.sam" %in% dir(cluster.aln.dir)) {
+  system(sprintf("%s sam2table.py %s", py.cmd, cluster.sam))
+  mapped.clusters <- read.table(file.path(cluster.aln.dir, "cluster-seqs.txt"), sep='\t', header=TRUE) 
+  mapped.clusters <- merge(cluster.cands, mapped.clusters, by.x='row.names', by.y='name', all=TRUE)
+
+  
+  mapped.clusters[, 1] <- as.integer(mapped.clusters$Row.names)
+  mapped.clusters$chr <- as.character(mapped.clusters$chr)
+  mapped.clusters$seq.x <- as.character(mapped.clusters$seq.x)
+  mapped.clusters$count <- as.integer(mapped.clusters$count)
+  mapped.clusters$split <- as.integer(mapped.clusters$split)
+  mapped.clusters$cigar <- as.character(mapped.clusters$cigar)
+  mapped.clusters$split <- as.integer(mapped.clusters$split)
+  mapped.clusters$strand <- as.character(mapped.clusters$strand)
+  mapped.clusters$mapq <- as.integer(mapped.clusters$mapq)
+  mapped.clusters$pos <- as.integer(mapped.clusters$pos)
+  mapped.clusters$rname <- as.character(mapped.clusters$rname)
+  mapped.clusters$seq.y <- as.character(mapped.clusters$seq.y)
+
+  write.table(as.matrix(mapped.clusters), row.names=FALSE, quote=FALSE, sep='\t')
+}
+
+## * Compare split-mate candidates and clustered and mapped fusion candidates
+
+## We expand the split-mate ranges by 400 bases - this allows for fuzzier
+## matches.
+
+## First, we build the =mapped_cluster= table.
+
+if ("cluster-seqs.sam" %in% dir(cluster.aln.dir)) {
+  tolerance <- 400 # bases
+  
+  tbl.name <- "mapped_clusters"
+  if (dbExistsTable(con, tbl.name))
+    dbRemoveTable(con, tbl.name)
+  
+  # Build a table
+  cols <- c(id="integer", chr="text", seq.x="text", count="integer",
+            split="integer", cigar="text", strand="text", 
+            mapq="integer", pos="integer", rname="text", seq.y="text")
+  tbl.query <- dbBuildTableDefinition(drv, tbl.name, NULL, field.types=cols)
+  dbGetQuery(con, tbl.query)
+  
+  ok <- dbWriteTable(con, tbl.name, mapped.clusters, append=TRUE, row.names=FALSE)
+  stopifnot(ok)
+}
+
+## And the =split_mate_candidates= table:
+
+tbl.name <- "split_mate_candidates"
+if (dbExistsTable(con, tbl.name))
+  dbRemoveTable(con, tbl.name)
+
+# Build a table
+cols <- c(chr="text", lower.pos="integer", upper.pos="integer",
+          count="integer", strand="text")
+tbl.query <- dbBuildTableDefinition(drv, tbl.name, NULL, field.types=cols)
+dbGetQuery(con, tbl.query)
+
+ok <- dbWriteTable(con, tbl.name, sm.cands, append=TRUE, row.names=FALSE)
+stopifnot(ok)
