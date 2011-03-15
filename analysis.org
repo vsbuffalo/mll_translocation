@@ -697,35 +697,39 @@ First, we build the =mapped_cluster= table.
 And the =split_mate_candidates= table:
 
 #+begin_src R +n :tangle analysis.R
-  tbl.name <- "split_mate_candidates"
-  if (dbExistsTable(con, tbl.name))
-    dbRemoveTable(con, tbl.name)
+  if ("cluster-seqs.sam" %in% dir(cluster.aln.dir)) {
+    tbl.name <- "split_mate_candidates"
+    if (dbExistsTable(con, tbl.name))
+      dbRemoveTable(con, tbl.name)
   
-  # Build a table
-  cols <- c(chr="text", lower.pos="integer", upper.pos="integer",
-            count="integer", strand="text")
-  tbl.query <- dbBuildTableDefinition(drv, tbl.name, NULL, field.types=cols)
-  dbGetQuery(con, tbl.query)
+    # Build a table
+    cols <- c(chr="text", lower.pos="integer", upper.pos="integer",
+              count="integer", strand="text")
+    tbl.query <- dbBuildTableDefinition(drv, tbl.name, NULL, field.types=cols)
+    dbGetQuery(con, tbl.query)
   
-  ok <- dbWriteTable(con, tbl.name, sm.cands, append=TRUE, row.names=FALSE)
-  stopifnot(ok)  
+    ok <- dbWriteTable(con, tbl.name, sm.cands, append=TRUE, row.names=FALSE)
+    stopifnot(ok)
+  }
+  
 #+end_src
 
 * Query =mapped_cluster= and =split_mate_candidates= tables looking for best candidates
 
 #+begin_src R +n :tangle analysis.R
-  query <- "SELECT mc.id, mc.chr, mc.pos, mc.count, mc.split,
+  if ("cluster-seqs.sam" %in% dir(cluster.aln.dir)) {
+    query <- "SELECT mc.id, mc.chr, mc.pos, mc.count, mc.split,
   mc.cigar, mc.strand, mc.mapq, smc.count, smc.strand,
   smc.lower_pos, smc.upper_pos
   FROM mapped_clusters AS mc, split_mate_candidates AS smc
   WHERE mc.chr = smc.chr AND
   mc.pos >= smc.lower_pos-400 AND mc.pos <= smc.upper_pos+400;"
   
-  message("Querying mapped_clusters and split_mate_candidates for consistent candidates.")
-  top.cands <- dbGetQuery(con, query)
-  
-  write.table(file.path(results.dir, "top-candidates.txt"), row.names=FALSE, quote=FALSE)
-  
+    message("Querying mapped_clusters and split_mate_candidates for consistent candidates.")
+    top.cands <- dbGetQuery(con, query)
+    
+    write.table(top.cands, file.path(results.dir, "top-candidates.txt"), row.names=FALSE, quote=FALSE)
+  }
 #+end_src
 
 * Final Output
