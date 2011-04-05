@@ -639,12 +639,14 @@ if ("cluster-seqs.sam" %in% dir(cluster.aln.dir)) {
 
 ## * Query =mapped_cluster= and =split_mate_candidates= tables looking for best candidates
 
+## Note that 642 is the position before the last Sau3a site.
 if ("cluster-seqs.sam" %in% dir(cluster.aln.dir)) {
   query <- "SELECT mc.id, mc.chr, mc.pos, mc.count, mc.split,
 mc.cigar, mc.strand, mc.mapq, smc.count, smc.strand,
 smc.lower_pos, smc.upper_pos
 FROM mapped_clusters AS mc, split_mate_candidates AS smc
 WHERE mc.chr = smc.chr AND
+AND mc.split < 642
 mc.pos >= smc.lower_pos-400 AND mc.pos <= smc.upper_pos+400;"
 
   message("Querying mapped_clusters and split_mate_candidates for consistent candidates.")
