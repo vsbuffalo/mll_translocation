@@ -645,7 +645,7 @@ if ("cluster-seqs.sam" %in% dir(cluster.aln.dir)) {
 mc.cigar, mc.strand, mc.mapq, smc.count, smc.strand,
 smc.lower_pos, smc.upper_pos
 FROM mapped_clusters AS mc, split_mate_candidates AS smc
-WHERE mc.chr = smc.chr AND
+WHERE mc.chr = smc.chr
 AND mc.split < 642 AND
 mc.pos >= smc.lower_pos-400 AND mc.pos <= smc.upper_pos+400;"
 
