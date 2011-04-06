@@ -1,5 +1,5 @@
 """
-sam_db.py - Load SAM database results into a SQLite database.
+sampe2db.py - Load SAM database results into a SQLite database.
 
 """
 from optparse import OptionParser
@@ -53,7 +53,7 @@ class PairedReads(object):
         self.pairs = dict()
         self.dbname = dbname
         self.conn = sqlite3.connect(self.dbname)
-        self.split_mates_table = 'split_mates'
+        self.split_mates_table = 'split_mate'
         self.unmapped_mates_table = 'unmapped_mates'
         self.pairs_table = 'pairs'
 
