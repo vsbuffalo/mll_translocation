@@ -41,8 +41,8 @@ class PairedReads(object):
         self.mode = "r"
         self.filename = filename
         if barcode is None:
-            self.barcode = filename.split('.')[0]
-        if filename.split('.')[1] == "bam":
+            self.barcode = os.path.basename(filename).split('.')[0]
+        if os.path.basename(filename).split('.')[1] == "bam":
             self.mode = "rb"
         self.samfile = pysam.Samfile(filename, self.mode)
         self.mapped = 0
