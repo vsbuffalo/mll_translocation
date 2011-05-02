@@ -127,6 +127,9 @@ if (!TEST.MODE) {
 
 ## ** Raw counts of reads mapped with one forward mate to chr11 and another mate mapped elsewhere.
 
+## First, we get a sense of the /rough/ signals of rearrangements,
+## according to split mates.
+
 query <- "
 SELECT chr_1, chr_2, strand_1, strand_2, count(*) as count
 FROM split_mates
@@ -139,6 +142,8 @@ all.counts <- dbGetQuery(con, query)
 
 ## ** Instate basic count threshold: candidates with more than 10 counts
 
+## Now, we remove low counts (less than 10).
+
 count.thresh <- 10
 counts <- all.counts[all.counts$count > count.thresh, ]
 rownames(counts) <- NULL
@@ -149,8 +154,12 @@ print(counts)
 
 ## ** Positions of rearrangement candidate reads
 
-## Are there consistent positions of mapped reads in each rearrangement
-## candidate? Hierarchical clustering is used to group by distance.
+## Now that certain mates are mapping in chromosome 11 and some other
+## chromosome, we are curious whether there are islands of coverage in
+## the alternate rearrangement candidate. Hierarchical clustering is used
+## to group unique positions by distance. The clusters are not cut (well,
+## cut with very high =h= height argument), which works well for genomic
+## distances.
 
 extractCandidates = 
 # Given rows from the split_mates table subset for a candidate
@@ -163,7 +172,7 @@ function(reads.df, clust.member.thresh=2) {
     return(NULL)
   pos <- reads.df$pos_2
   names(pos) <- pos
-  message("    running hclust() and dist() - this can take a while.")
+  message("    running hclust() and dist().")
 
   pos <- unique(pos)
   names(pos) <- pos
@@ -257,8 +266,9 @@ for (fn in dir(assembly.dir, pattern="\\.fasta$")) {
 ## sequence will contain a large section of translocation chromosome.
 
 ## The =unmapped_mates= table contains all reads in which one mate is
-## unmapped. Ordering by count, we see evidence of the same rearragement
-## partners as with the split-mates data:
+## unmapped. Ordering by the count of mates mapped by chromosome, we see
+## evidence of the same rearragement partners as with the split-mates
+## data (with the exception of chromosome 11):
 
 query <- "
 SELECT mapped_chr, count(*) AS count FROM unmapped_mates 
@@ -301,10 +311,9 @@ print(fusion.counts)
 ## #+end_example
 
 ## The presumption here is that the unmapped mate will contain some
-## chromosome 11 (specifically MLL) sequence. We extract and map the
-## unmapped mates, keeping them grouped by the chromosome of their mapped
-## mate (which, if this were a true rearrangement, would be the
-## rearrangement partner).
+## chromosome 11 (specifically MLL) sequence. We first extract the
+## unmapped sequence from the database, and write these as FASTA files
+## (as we will map these against the MLL template).
 
 query <- "
 SELECT mapped_chr as chr, name as header, unmapped_seq as seq 
@@ -325,6 +334,13 @@ for (chr in names(unmapped.by.chr)) {
 }
 
 ## ** BWA BWASW alignment of unmapped sequences
+
+## BWA BWASW is used (even though it's a long read aligner) on to align
+## these unmapped mates to the MLL reference, as it will soft clip the
+## alignment. This gives an alignment with a CIGAR string something like:
+## =50M20S=, indicating 50 bases mapped and 20 soft clipped. The soft
+## clipped sequences should be from the rearrangement chromosome if a
+## particular read spans the fusion site (which would make it unmapped).
 
 # run long read aligner on all samples
 message("Running BWA bwasw on unmapped mates.")
@@ -349,7 +365,10 @@ system(sprintf("ls %s/*sam | xargs -n1 %s find_fusion.py", aln.dir, py.cmd))
 
 ## ** Statistical analysis of fusion sites
 
-## We load each of these alignment files into the =hybid_candidates= table.
+## We load each of these alignment files into the =hybrid_candidates=
+## table. These are known as *hybrid candidates* because a hybrid read is
+## one in which it contains a hybrid of two sequences (or chromosomes, in
+## this case).
 
 tbl.name <- "hybrid_candidates"
 
@@ -403,8 +422,9 @@ if (interactive()) {
 ## #+results:
 
 ## The chromosomes above are all rearrangement candidates. Now, write
-## FASTA files for each of these (again, for the moment excluding chr11) to
-## cluster.
+## FASTA files for each of these *tail sequences* (again, for the moment
+## excluding chr11) to cluster. These are possible sequences from the
+## rearrangement chromosome.
 
 split.cands <- split.df$chromosome[split.df$chromosome!='chr11']
 
@@ -427,10 +447,10 @@ for (chr in names(seqs.by.chr)) {
     writeFASTA(s$softclipped, fn, desc=paste(s$name, s$split, sep=';;'))
 }
 
-## ** Soft-clipped sequence clustering
+## ** Soft-clipped/Tail sequence sequence clustering
 
 ## Use =cd-hit= to cluster soft-clipped sequences (which in a
-## rearrangement will be the alternate chromosome). =cd-hit= produces
+## rearrangement should be the alternate chromosome). =cd-hit= produces
 ## FASTA files of representative sequences, as well as .clstr files that
 ## indicate cluster membership. To see how many sequences are clustered
 ## into a single representative sequence, we extract the information from
@@ -514,7 +534,7 @@ for (fasta.file in dir(cluster.dir, pattern="\\-clusters.fasta$")) {
 clusters <- do.call(rbind, all.clusters)
 rownames(clusters) <- NULL
 
-## * Write results tables
+## * Write split mates results tables
 
 sm.cands <- local({
   # Make ragged list cands more output-friendly
@@ -545,6 +565,10 @@ cluster.cands <- local({
 print(cluster.cands)
 
 ## * Align fusion candidate sequences to human genome
+
+## Now that we have the cluster sequences, we try to align these to the
+## entire human genome. Recall that these have a mapped mate, and the
+## aligned tail sequence should map to the same chromosome as the mate.
 
 # These are kept outside because on testing machines, we can move the
 # approperiate files to test this code.
