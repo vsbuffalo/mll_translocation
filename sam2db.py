@@ -204,7 +204,7 @@ if __name__ == "__main__":
     if not os.path.exists(args[0]):
         parser.error("Specified SAM file does not exist.")
 
-    a = AlignedReads(args[0], "samdb", args[0].split('.')[0])
+    a = AlignedReads(args[0], "samdb", os.path.basename(args[0]).split('.')[0])
     a.insert_all()
 
     # Create index on qname
