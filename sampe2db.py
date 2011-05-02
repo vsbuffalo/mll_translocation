@@ -115,10 +115,10 @@ proper_1 int, proper_2 int)
         for pair in self.pairs:
             readset = self.pairs[pair]
 
-            # if len(readset) < 2:
-            #     self.unpaired += 1
-            #     continue
-            assert(len(readset) == 2)
+            if len(readset) < 2:
+                self.unpaired += 1
+                continue
+            # assert(len(readset) == 2)
 
             all_mapped = all([not r.is_unmapped for r in readset])
             mapping_positions = [r.rname for r in readset]
