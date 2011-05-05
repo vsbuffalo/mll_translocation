@@ -27,7 +27,8 @@ function(rootname) {
   results <- check.dir(file.path(base, "results"))
   
   list(base=base, unmapped.mates=unmapped.mates, aln=aln,
-       tailseqs=tailseqs, cluster=cluster, results=results)
+       tailseqs=tailseqs, cluster=cluster, cluster.aln=cluster.aln,
+       results=results)
 }
 
  

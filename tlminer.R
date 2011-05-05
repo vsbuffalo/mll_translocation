@@ -202,7 +202,11 @@ cluster.cands <- local({
 ### Align clustered tail sequences to human genome
 if (!TEST.MODE) {
   fn <- file.path(dirs$cluster.aln, "cluster-seqs.fasta")
-  writeFASTA(cluster.cands$seq, fn, desc=rownames(cluster.cands))
+  local({
+    tmp <- as(unlist(cluster.cands$seq), "XStringSet")
+    names(tmp) <- rownames(cluster.cands)
+    write.XStringSet(tmp, file=fn, format="fasta")
+  })
   edit.dist <- 8
   
   message("Running BWA aln on cluster sequences (to human genome).")
@@ -214,3 +218,7 @@ if (!TEST.MODE) {
   system(sprintf("%s samse %s %s %s > %s",
                  bwacmd, hg.ref, aln.file, fn, cluster.sam))
 }
+
+
+### Query out overlaps between aligned tail sequences and split-mate regions
+
