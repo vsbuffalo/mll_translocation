@@ -16,7 +16,7 @@ checkBWA(ref)
 ### Find BAM file
 TEST.MODE <- system('uname -s', intern=TRUE) == 'Darwin'
 # For testing and org-mode usesage.
-if (interactive() && TEST.MODE) {
+if (interactive() || TEST.MODE) {
   bamfile <- "CAGTACT.sorted.bam"
 } else if(!interactive()) {
   args <- commandArgs()
