@@ -107,9 +107,10 @@ mappedunmapped <- scanBam(bamfile, param=mappedunmapped.param)
 with(mappedunmapped[[1]], {
   seqs <- split(seq, mrnm)
   headers <- split(qname, mrnm)
+  mpos <- split(mpos, mrnm)
   lapply(names(seqs), function(chr) {
     tmp <- seqs[[chr]]
-    names(tmp) <- headers[[chr]]
+    names(tmp) <- paste(headers[[chr]], mpos, sep=";;;")
     fn <- file.path(dirs$unmapped.mates, sprintf("%s-unmapped-mates.fasta", chr))
     write.XStringSet(tmp, file=fn, format="fasta")
     TRUE
@@ -212,7 +213,7 @@ if (!TEST.MODE) {
   fn <- file.path(dirs$cluster.aln, "cluster-seqs.fasta")
   local({
     tmp <- as(unlist(cluster.cands$seq), "XStringSet")
-    names(tmp) <- rownames(cluster.cands)
+    names(tmp) <- paste(cluster.cands$chr, cluster.cands$split, sep=";;;")
     write.XStringSet(tmp, file=fn, format="fasta")
   })
   edit.dist <- 8
@@ -234,10 +235,24 @@ if (!TEST.MODE) {
 
 
 ### Query out overlaps between aligned tail sequences and split-mate regions
+tailseqs.aln.param <- ScanBamParam(flag=scanBamFlag(isUnmappedQuery=FALSE), 
+                                   what=c("rname", "qname", "pos", "cigar", "qwidth", "mapq", "strand", "seq"))
 if (!TEST.MODE) {
-  aln <- scanBam(bamfile, param=ScanBamParam(flag=scanBamFlag(isUnmappedQuery=FALSE)))[[1]]
+  aln <- scanBam(bamfile, param=tailseqs.aln.param)[[1]]
+  
   tailseqs <- local({
-    d <- with(aln, data.frame(chr=as.character(rname), start=pos, width=qwidth, stringsAsFactors=FALSE))
+
+    # Fit the BAM lists into a nice dataframe, extracting the split
+    # from the qname header info. Note that this contains the columns
+    # "chr", which is the chromosome the tail sequence mapped to, and
+    # "mate.chr", which is the chromosome the mapping mate mapped to.
+    d <- with(aln, {
+      split <- as.numeric(sapply(strsplit(qname, ";;;", fixed=TRUE), function(x) x[2]))
+      mate.chr <- sapply(strsplit(qname, ";;;", fixed=TRUE), function(x) x[1])
+      data.frame(chr=as.character(rname), start=pos, width=qwidth, strand=strand, seq=as.character(seq), 
+                 split=split, mate.chr=mate.chr, mapq=mapq, cigar=cigar, stringsAsFactors=FALSE)
+    })
+
     tmp <- apply(d, 1, function(x)
                  GRanges(x[1], IRanges(as.numeric(x[2]), width=as.numeric(x[3]))))
     gr <- GRangesList(tmp)
@@ -260,3 +275,6 @@ if (!TEST.MODE) {
   }))
   
 }
+
+
+### add mapped mate position to d
