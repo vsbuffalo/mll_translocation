@@ -11,7 +11,7 @@ function (x, start=1, end=length(x), col="blue", xlab="Position", ylab="Coverage
   polygon(c(start, x, end), c(0, xWindow, 0), col=col)
 }
 
-PlotRangesCoverage <-
+plotRangesCoverage <-
 function(x, chr) {
   plotCoverage(coverage(x[[chr]]), min(start(x[[chr]])), max(end(x[[chr]])), main=chr)
 }

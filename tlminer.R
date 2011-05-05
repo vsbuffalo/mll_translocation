@@ -136,7 +136,7 @@ message("Writing tail sequences to file.")
 for (bamfile in dir(dirs$aln, pattern="\\.bam")) {
   chr <- getRootname(bamfile)
   param <- ScanBamParam(simpleCigar=FALSE, flag=scanBamFlag(isUnmappedQuery=FALSE),
-                        what=c("qname", "pos", "strand", "seq", "cigar"))
+                        what=c("qname", "rname", "pos", "strand", "seq", "cigar"))
   aln <- scanBam(file.path(dirs$aln, bamfile), param=param)[[1]]
   fd <- data.frame(as.character(aln$seq), aln$cigar, aln$pos, stringsAsFactors=FALSE)
   tmp <- apply(fd, 1, function(x) {
@@ -145,7 +145,7 @@ for (bamfile in dir(dirs$aln, pattern="\\.bam")) {
   })
   no.fusion <- sapply(tmp, is.null)
   fusions <- tmp[!no.fusion]
-  fusions <- data.frame(qname=aln$qname[!no.fusion], 
+  fusions <- data.frame(qname=aln$qname[!no.fusion], aln$rname[!no.fusion], 
                         do.call(rbind, fusions), stringsAsFactors=FALSE)
   tailseqs <- as(fusions$unmapped, "XStringSet")
   names(tailseqs) <- paste(fusions$qname, fusions$break.pos, sep=';;')
@@ -223,10 +223,40 @@ if (!TEST.MODE) {
   system(sprintf(bwarun, bwacmd, edit.dist, hg.ref, fn, aln.file))
     
   #bwa samse database.fasta aln_sa.sai short_read.fastq > aln.sam
-  system(sprintf("%s samse %s %s %s > %s",
+  cluster.sam <- file.path(dirs$cluster.aln, "cluster-seqs.sam")
+  system(sprintf("%s samse %s %s %s > %s 2> /dev/null",
                  bwacmd, hg.ref, aln.file, fn, cluster.sam))
+
+  # convert to bam
+  bamfile <- file.path(dirs$cluster.aln, "cluster-seqs.bam")
+  system(sprintf("%s view -S -b -o %s %s 2> /dev/null", samtoolscmd, bamfile, cluster.sam))
 }
 
 
 ### Query out overlaps between aligned tail sequences and split-mate regions
+if (!TEST.MODE) {
+  aln <- scanBam(bamfile, param=ScanBamParam(flag=scanBamFlag(isUnmappedQuery=FALSE)))[[1]]
+  tailseqs <- local({
+    d <- with(aln, data.frame(chr=as.character(rname), start=pos, width=qwidth, stringsAsFactors=FALSE))
+    tmp <- apply(d, 1, function(x)
+                 GRanges(x[1], IRanges(as.numeric(x[2]), width=as.numeric(x[3]))))
+    gr <- GRangesList(tmp)
+  })
 
+  no.chr11 <- names(altchr.mappings)[names(altchr.mappings) != 'chr11']
+  splitmates.gr <- lapply(no.chr11, function(chr) {
+    GRanges(chr, altchr.mappings[[chr]])
+  })
+
+  overlaps = findOverlaps(tailseqs, GRangesList(splitmates.gr))
+  as.character(seqnames(tailseqs))[as.matrix(oo)[,1]]
+  as.character(seqnames(GRangesList(splitmates.gr)))
+
+
+  ## alt
+  has.islands <- names(splitmate.islands)[sapply(splitmate.islands, function(x) length(x) != 0)]
+  islands.gr <- GRangesList(lapply(has.islands, function(chr) {
+    GRanges(chr, splitmate.islands[[chr]])
+  }))
+  
+}
