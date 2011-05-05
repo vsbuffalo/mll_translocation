@@ -11,7 +11,7 @@ source("utils.R")
 ### Config
 mll.region <- RangesList(chr11=IRanges(118307205, 118395934))
 ref <- "mll_template/mll.fasta"
-checkBWA(ref)
+checkBWA(dirname(ref))
 
 ### Find BAM file
 TEST.MODE <- system('uname -s', intern=TRUE) == 'Darwin'
