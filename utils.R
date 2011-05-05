@@ -39,10 +39,10 @@ function(refdir) {
   contents <- dir(refdir)
   m <- sapply(contents, function(x) {
     tmp <- strsplit(basename(x), '\\.')[[1]]
-    tmp[length(tmp)] %in% index.ext
+    tmp[length(tmp)]
   })
   
-  if (!all(m))
+  if (any(is.na(match(index.ext, m))))
     stop(sprintf("Reference in '%s' does not appear to be indexed.", refdir))
 }   
 
