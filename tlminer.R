@@ -33,6 +33,14 @@ bwacmd <- inPath(c("bwa", "/usr/local/bin/bwa"))
 cdhitcmd <- inPath(c("cd-hit", "/usr/local/bin/cd-hit"))
 samtoolscmd <- inPath('samtools')
 
+if (!TEST.MODE) {
+  message("Checking human genome reference is properly indexed for BWA.")
+  hg.refdir <- "/classico/jfass/projects/Vaughan/ref_hg19"
+  hg.ref <- file.path(hg.refdir, "hg19_24chrom.fasta")
+  checkBWA(hg.refdir)
+}
+
+
 ### Configure database
 ## dbfile <- sprintf("%s.sqlite", strsplit(basename(bamfile), '.', fixed=TRUE)[1])
 ## message(sprintf("Establishing database connection to %s", dbfile))
