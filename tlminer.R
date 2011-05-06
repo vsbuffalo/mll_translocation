@@ -16,8 +16,9 @@ checkBWA(dirname(ref))
 
 ### Find BAM file
 TEST.MODE <- system('uname -s', intern=TRUE) == 'Darwin'
-# For testing and org-mode usesage.
-if (interactive() || TEST.MODE) {
+# For testing and org-mode usesage.  The exists() check allows us to
+# do bamfile = "..." and then source() this.
+if ((interactive() || TEST.MODE) && !exists(bamfile)) { 
   bamfile <- "CAGTACT.sorted.bam"
 } else if(!interactive()) {
   args <- commandArgs()

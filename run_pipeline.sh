@@ -1,7 +1,13 @@
 #!/bin/bash
 
+# Take all SAM files and convert them to BAM
+echo *.sam | sed s/.sam/\\n/g | xargs -n1 -P10 -I{} samtools view -S -b -o {}.bam {}.sam
+
+# Take all BAM files and sort
+echo *.bam | sed s/.bam/\\n/g | xargs -n1 -P10 -I{} samtools view -S -b -o {}.bam {}.sam
+
 # Run analysis pipeline on all *.db SQLite databases
-ls *.db | xargs -n1 -P10 Rscript analysis.R 
+echo *.sorted.bam | xargs -n1 -P10 Rscript analysis.R
 
 # Compress results for post-analysis
 find . -name "*-output" | perl -ne 'chomp; print $_ . "/results/ "' | xargs tar -czf results.tar.gz
