@@ -257,9 +257,10 @@ if (!TEST.MODE) {
       mate.chr <- sub(".*chr=(chr[0-9XYM]+).*", "\\1", qname)
       mate.strand <- sub(".*;;mstrand=([\\+\\-]).*", "\\1", qname)
       split <- as.numeric(sub(".*split=([0-9]+).*", "\\1", qname))
-      pos <- as.numeric(sub(".*pos=([0-9]+).*", "\\1", qname))
+      mate.pos <- as.numeric(sub(".*mpos=([0-9]+).*", "\\1", qname))
       data.frame(chr=as.character(rname), start=pos, width=qwidth, strand=strand, seq=as.character(seq), 
-                 split=split, mate.chr=mate.chr, mate.pos=mate.pos, mapq=mapq, cigar=cigar, stringsAsFactors=FALSE)
+                 split=split, mate.chr=mate.chr, mate.pos=mate.pos, mate.strand=mate.strand,
+                 mapq=mapq, cigar=cigar, stringsAsFactors=FALSE)
     })
 
     tmp <- apply(d, 1, function(x)
