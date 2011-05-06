@@ -1,0 +1,5 @@
+mll_template/mll.fasta.*
+results/*
+*.pyc
+.#*
+.Rhistory

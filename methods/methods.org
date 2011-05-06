@@ -1,0 +1,131 @@
+#+title: A Method for Finding Chromosomal Translocations with Short Read Sequencing Data
+#+author: Joseph Fass, Vince Buffalo, Dawei Lin
+#+email: vsbuffalo@ucdavis.edu
+#+date: 
+#+babel: :results output :exports both :session :comments org
+
+* Sequencing Inverse PCR Products
+
+A specific region of the MLL gene on chromosome 11 is the location of
+rare chromosomal translocation events. However, the precise location
+and chromosomal rearrangement partner are unknown, and assayed via
+amplification and high-throughput shotgun sequencing of this region.
+
+The experimental data is the result of the inverse PCR design. Two
+outward facing primers were chosen upstream of the suspected
+translocation site. Samples were digested with the Sau3A restriction
+enzyme prior to amplification to create a sequence that could be
+circularized. This ciruclar molecule was then amplified (as the
+primers are now oriented correctly) and the products sequenced.
+
+The resulting data are short paired-end Illumina reads. An unknown
+length of translocated chromosome was incorporated into the
+sequence. This process also included another digestion with a different
+restriction enzyme that attempted to cut non-rearranged sequences.
+
+* Overview of Analysis Methods
+
+Shotgun sequencing produces reads that randomly cover different
+segments of the underlying sequence. Sequencing with deep coverage
+increases the likelihood that the position of the translocation
+(referred here thoughout as the *splice site*) will be covered by
+multiple reads in varying positions. Furthermore, high coverage would
+also produce many paired-end reads with a mate[fn:1] that full maps to
+the other chromosome involved in the rearragement (we refer to this as
+the *alternative chromosome*).
+
+** Split-mate Candidates
+
+Our methods load all paired-end sequencing data into a database and
+query out specific patterns to produce candidates
+rearrangements. Specifically, two approaches are taken. First,
+paired-end reads in which the /forward/ mate maps to the MLL region of
+chromosome 11 and the other mate maps to /any/ strand of an alternate
+chromosome (not 11) are considered *split-mate candidates* (as the
+mates are split from each other). Because the insert size between ends
+of a paired-end read is small (and can definitely not span
+chromosomes), split-mate candidates indicate a possible rearrangement.
+
+** Split-Read Candidates
+
+Second, reads in which one mate maps fully to a chromosome other than
+11, and the other mate does /not/ map are of interest. Note that the
+translocation splice site is sequence not suspected to be found
+anywhere else in the genome; it is chimeric. Thus, all mates that span
+the splice site are very unlikely to map. The set of all reads with
+one mate mapping to an alternate chromosome, and one unmapping mate
+are *split-read candidates* (the split-read indicating that one
+sequencing read end of the paired-end was unmapped).
+
+** Hybrid Candidates
+
+However, there are many reasons why a particular mate may not
+map. Incorrectly called bases, haplotypes different than the reference
+genome, etc can all lead to a mate not mapping. To further filter
+these split-read candidates, each unmapping mate from a split-read
+candidatae is aligned against the MLL IPCR template[fn:2]. Unlike
+previous alignment steps, the aligner used here will produce partial
+alignment results. Consequently unmapped reads that contain /some/ MLL
+sequence will have this subsequence fully map to the template. This
+produces a non-mapping subsequence, which, if this read spaces a true
+splice site, should be that of the alternate chromosome. Such reads
+are *hybrid candidates*.
+
+Recall that all paired-end reads have to mates; thus the hybrid reads
+that possible span the splice site also have a fully mapping mate to
+an alternate chromosome. If an unmapped mate were truly crossing a
+splice site, part of the read would align to the MLL template, and the
+remaining *tail sequence* (the subsequence not aligning to the MLL
+template) should map to the same chromosome, and at a position within
+at most a few kilobases from the mapped mate.
+
+** Producing Top Candidates
+
+At every stage of the analysis (split-mate, split-read, and hybrid
+reads), the raw number of reads mapping these requirements indicates
+their frequency in the dataset, and is related to the likelihood these
+are a true rearrangement. A full top candidate for a rearrangement
+would have agreeing results from these independent
+steps. Specifically, suppose a possible rearrangement with a fictional
+chromsome K, at 31,415 bases in. The data should reveal three pieces of
+evidence of this arrangement:
+
+1. There should be a high number of paired-end reads in which one mate
+   maps to the MLL region of chromosome 11, and the other mate maps to
+   chromosome K, a little over 31 kilobases in.
+2. There should be some reads in which one mate maps to chromosome K
+   around 31 kilobases in, and the other mate does not map.
+3. The unmapped mates from reads that satisfy requirement (2) should
+   map partially to the MLL template, and the non-aligning part should
+   map to the same chromosome as the mapping mate (and nearby the
+   mapping mate), in this case chromosome K.
+
+Each stage may produce a noisy set of candidates. From this noisy
+data, a signal is seen by the set of candidates that have evidence
+from each of these three sources. These are the *top-candidates*
+rearrangements.
+
+** Verification
+
+Each top-candidate rearrangement produces an exact splice site
+candidate composed of the precise ending point in MLL, the
+rearrangement partner sequence, and the precise starting point of this
+sequence. To verify that such candidates are truly in the data, these
+candidate rearrangement sequences are, as well as fake sequences
+produced by offsetting the splice site in many different
+directions. If the candidate is a true rearrangment, we should expect
+reads to map over this candidate splice site at a much, much higher
+frequency then those with the incorrect offsets.
+
+* Footnotes
+[fn:1] A paired-end sequence is one in which the 5'-end of the forward
+strand and 5'-end of the reverse strand are both sequences. This
+produces a read in which the sequences of both ends are known, but the
+distance between then is only known to be within a range determined by
+the library preparation and sequencing technology. We refer to each
+sequenced end as a *mate*; thus each paired-end sequence is composed
+of two mates.
+
+[fn:2] The IPCR template is the inner region between the two primers;
+it is the sequence that would occur if there was no rearrangement and
+no digestion by the second enzyme.
