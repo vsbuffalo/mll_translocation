@@ -183,21 +183,31 @@ for (fasta.file in dir(dirs$cluster, pattern="\\-clusters.fasta$")) {
   
   # process .clstr files
   rep.seqs <- as.data.frame(cbind(d))
-  
+
   # read FASTA file
   clusters <- local({
     tmp <- readFASTA(fn, strip.descs=TRUE)
-    headers <- lapply(tmp, function(x) x[[1]])
-    seqs <- lapply(tmp, function(x) x[[2]])
+    headers <- sapply(tmp, function(x) x[[1]])
+    seqs <- sapply(tmp, function(x) x[[2]])
+
+    ## In rare cases, we could have the same header twice. Rownames
+    ## need to be unique, so some are dicarded.
+    tbl.headers <- table(headers)
+    if (any(tbl.headers) > 1) {
+      warning("Cluster sequence headers are not unique.")
+      remove <- which(tbl.headers > 1)
+      seqs <- seqs[-remove]
+      headers <- headers[-remove]
+    }
     
-    tmp <- as.data.frame(cbind(seqs))
-    rownames(tmp) <- make.names(headers, unique=TRUE)
+    tmp <- data.frame(seqs=seqs)
+    rownames(tmp) <- headers
     tmp
   })
   
   # match counts and sequence
   clusters <- merge(clusters, rep.seqs, by.x=0, by.y=0)
-  clusters <- cbind(chr, clusters)
+  clusters <- data.frame(chr, clusters)
   colnames(clusters) <- c('chr', 'name', 'seq', 'count')
 
   # extract out mate mapping position and break point from clusters
