@@ -2,8 +2,6 @@
 suppressMessages({
   library(Rsamtools)
   library(bitops)
-  library(RSQLite)
-  library(org.Hs.eg.db)
 })
 
 source("plotting-methods.R")

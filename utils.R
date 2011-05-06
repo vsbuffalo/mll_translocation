@@ -1,6 +1,6 @@
 ## utils.R - utilities for tlminer.R
 
-check.dir =
+checkDir =
 # if a directory doesn't exist, make it
 function(dir) {
   if (!file.exists(dir)) {
@@ -17,14 +17,15 @@ function(file)
 
 makeResultsDir =
 # make the directory structure
-function(rootname) {
-  base <- check.dir(sprintf("%s-run", rootname))
-  unmapped.mates <- check.dir(file.path(base, "unmapped-mate"))
-  aln <- check.dir(file.path(base, "unmapped-mate-alns"))
-  tailseqs <- check.dir(file.path(base, "tailseqs"))
-  cluster <- check.dir(file.path(base, "tailseqs-clustered"))
-  cluster.aln <- check.dir(file.path(base, "clustered-tailseqs-aln"))
-  results <- check.dir(file.path(base, "results"))
+function(rootname, root.results="results") {
+  results <- checkDir(root.results)
+  base <- checkDir(file.path(, sprintf("%s-run", rootname)))
+  unmapped.mates <- checkDir(file.path(base, "unmapped-mate"))
+  aln <- checkDir(file.path(base, "unmapped-mate-alns"))
+  tailseqs <- checkDir(file.path(base, "tailseqs"))
+  cluster <- checkDir(file.path(base, "tailseqs-clustered"))
+  cluster.aln <- checkDir(file.path(base, "clustered-tailseqs-aln"))
+  results <- checkDir(file.path(base, "results"))
   
   list(base=base, unmapped.mates=unmapped.mates, aln=aln,
        tailseqs=tailseqs, cluster=cluster, cluster.aln=cluster.aln,
