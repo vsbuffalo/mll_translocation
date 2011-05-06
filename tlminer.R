@@ -99,7 +99,7 @@ splitmate.max.cov <- lapply(splitmate.islands, viewMaxs)
 
 
 ### Mapped-Unmapped pairs
-mappedunmapped.param <- ScanBamParam(what=c("qname", "rname", "pos", "mrnm", "mpos", "seq", "strand", "flag"),
+mappedunmapped.param <- ScanBamParam(what=c("qname", "rname", "pos", "mrnm", "mpos", "seq", "flag"),
                                      flag=scanBamFlag(isUnmappedQuery=TRUE, hasUnmappedMate=FALSE))
 mappedunmapped <- scanBam(bamfile, param=mappedunmapped.param)
 
@@ -108,11 +108,11 @@ with(mappedunmapped[[1]], {
   seqs <- split(seq, mrnm)
   headers <- split(qname, mrnm)
   mpos <- split(mpos, mrnm)
-  mstrand <- split(mpos, mrnm)
+  mstrand <- sapply(split(flag, mrnm), function(x) c("+", "-")[(bitAnd(x, 32L) > 0L) + 1 ])
   lapply(names(seqs), function(chr) {
     tmp <- seqs[[chr]]
     names(tmp) <- sprintf("%s;;mpos=%s;;mstrand=%s", headers[[chr]], mpos[[chr]], mstrand[[chr]])
-    fn <- file.path(dirs$unmapped.mates, sprintf("%s-unmapped-mates.fasta", chr))
+    fn <- file.path(dirs$unmapped.mates, sprintf("%s.fasta", chr))
     write.XStringSet(tmp, file=fn, format="fasta")
     TRUE
   })
