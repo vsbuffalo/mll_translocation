@@ -193,9 +193,10 @@ for (fasta.file in dir(dirs$cluster, pattern="\\-clusters.fasta$")) {
     ## In rare cases, we could have the same header twice. Rownames
     ## need to be unique, so some are dicarded.
     tbl.headers <- table(headers)
-    if (any(tbl.headers) > 1) {
+    if (any(tbl.headers > 1)) {
       warning("Cluster sequence headers are not unique.")
-      remove <- which(tbl.headers > 1)
+      dups <- names(tbl.headers)[tbl.headers > 1]
+      remove <- which(dups == rownames(headers))
       seqs <- seqs[-remove]
       headers <- headers[-remove]
     }
@@ -204,6 +205,9 @@ for (fasta.file in dir(dirs$cluster, pattern="\\-clusters.fasta$")) {
     rownames(tmp) <- headers
     tmp
   })
+
+  if (!nrow(clusters))
+    next()
   
   # match counts and sequence
   clusters <- merge(clusters, rep.seqs, by.x=0, by.y=0)
@@ -217,7 +221,7 @@ for (fasta.file in dir(dirs$cluster, pattern="\\-clusters.fasta$")) {
   
   all.clusters[[chr]] <- clusters
 }
-  
+
 # bit of name mangling here...
 clusters <- do.call(rbind, all.clusters)
 rownames(clusters) <- NULL
