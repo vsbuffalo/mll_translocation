@@ -201,7 +201,7 @@ for (fasta.file in dir(dirs$cluster, pattern="\\-clusters.fasta$")) {
       headers <- headers[-remove]
     }
     
-    tmp <- data.frame(seqs=seqs)
+    tmp <- data.frame(seqs=seqs, stringsAsFactors=FALSE)
     rownames(tmp) <- headers
     tmp
   })
@@ -211,7 +211,7 @@ for (fasta.file in dir(dirs$cluster, pattern="\\-clusters.fasta$")) {
   
   # match counts and sequence
   clusters <- merge(clusters, rep.seqs, by.x=0, by.y=0)
-  clusters <- data.frame(chr, clusters)
+  clusters <- data.frame(chr, clusters, stringsAsFactors=FALSE)
   colnames(clusters) <- c('chr', 'name', 'seq', 'count')
 
   # extract out mate mapping position and break point from clusters
