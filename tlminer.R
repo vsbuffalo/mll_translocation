@@ -18,16 +18,18 @@ checkBWA(dirname(ref))
 TEST.MODE <- system('uname -s', intern=TRUE) == 'Darwin'
 # For testing and org-mode usesage.  The exists() check allows us to
 # do bamfile = "..." and then source() this.
-if ((interactive() || TEST.MODE) && !exists(bamfile)) { 
-  bamfile <- "CAGTACT.sorted.bam"
-} else if (!interactive() && !exists(bamfile)) {
-  args <- commandArgs()
-  arg.delim <- which(args == '--args') + 1
-  args <- args[arg.delim:length(args)]
-  bamfile <- args[1]
+if (!exists("mapfile")) {
+  if ((interactive() || TEST.MODE)) { 
+    mapfile <- "CAGTACT.sorted.bam"
+  } else if (!interactive()) {
+    args <- commandArgs()
+    arg.delim <- which(args == '--args') + 1
+    args <- args[arg.delim:length(args)]
+    mapfile <- args[1]
+  }
 }
 
-rootname <- getRootname(bamfile)
+rootname <- getRootname(mapfile)
 
 ### Set up directories and check references
 dirs <- makeResultsDir(rootname)
@@ -52,12 +54,12 @@ if (!TEST.MODE) {
 ## con <- dbConnect(drv, dbname=dbfile)
 
 ### Alignment Statistics
-unmapped <- countBam(bamfile, param=ScanBamParam(flag=scanBamFlag(isUnmappedQuery=TRUE)))
-mapped <- countBam(bamfile, param=ScanBamParam(flag=scanBamFlag(isUnmappedQuery=FALSE)))
-mapped.mll.forward <- countBam(bamfile, param=ScanBamParam(which=mll.region,
+unmapped <- countBam(mapfile, param=ScanBamParam(flag=scanBamFlag(isUnmappedQuery=TRUE)))
+mapped <- countBam(mapfile, param=ScanBamParam(flag=scanBamFlag(isUnmappedQuery=FALSE)))
+mapped.mll.forward <- countBam(mapfile, param=ScanBamParam(which=mll.region,
                                           flag=scanBamFlag(isMinusStrand=FALSE,
                                             isUnmappedQuery=FALSE)))
-mapped.mll.reverse <- countBam(bamfile, param=ScanBamParam(which=mll.region,
+mapped.mll.reverse <- countBam(mapfile, param=ScanBamParam(which=mll.region,
                                           flag=scanBamFlag(isMinusStrand=TRUE,
                                             isUnmappedQuery=FALSE)))
 ### MLL Region coverage plots
@@ -70,7 +72,7 @@ mapped.mll.reverse <- countBam(bamfile, param=ScanBamParam(which=mll.region,
 mll.forward.param <- ScanBamParam(which=mll.region,
                                 what=c("rname", "pos", "qwidth", "mrnm", "mpos", "seq", "flag"),
                                 flag=scanBamFlag(isUnmappedQuery=FALSE, isMinusStrand=FALSE))
-mll.forward <- scanBam(bamfile, param=mll.forward.param)
+mll.forward <- scanBam(mapfile, param=mll.forward.param)
 
 # Find all entries with mrnm that is chr11 and remove these.
 keep <- with(mll.forward[[1]], mrnm != 'chr11')
@@ -103,7 +105,7 @@ splitmate.max.cov <- lapply(splitmate.islands, viewMaxs)
 ### Mapped-Unmapped pairs
 mappedunmapped.param <- ScanBamParam(what=c("qname", "rname", "pos", "mrnm", "mpos", "seq", "flag"),
                                      flag=scanBamFlag(isUnmappedQuery=TRUE, hasUnmappedMate=FALSE))
-mappedunmapped <- scanBam(bamfile, param=mappedunmapped.param)
+mappedunmapped <- scanBam(mapfile, param=mappedunmapped.param)
 
 ## Group by chromosome and write to file
 with(mappedunmapped[[1]], {
