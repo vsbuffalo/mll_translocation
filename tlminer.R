@@ -291,7 +291,11 @@ if (!TEST.MODE) {
 
   top.candidates <- subsetByOverlaps(tailseqs, islands.fuzzy)
   tc.metadata <- local({
-    mc <- elementMetadata(islands)[as.matrix(findOverlaps(tailseqs, islands.fuzzy))[, 2],]
+    i <- as.numeric(names(top.candidates))
+
+    tmp <- as.matrix(findOverlaps(tailseqs, islands.fuzzy))
+    mc <- elementMetadata(islands)[tmp[match(i, tmp[, 1]), 2],]
+    
     mdf <- elementMetadata(top.candidates)
     mdf$splitmate.island.mean.coverage <- mc
     mdf
