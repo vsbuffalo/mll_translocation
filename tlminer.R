@@ -206,7 +206,7 @@ for (fasta.file in dir(dirs$cluster, pattern="\\-clusters.fasta$")) {
 clusters <- do.call(rbind, all.clusters)
 rownames(clusters) <- NULL
 cluster.cands <- local({
-  d <- clusters[clusters$count > 10, c('chr', 'seq', 'count', 'split')]
+  d <- clusters[clusters$count > 10, c('chr', 'seq', 'count', 'split', 'mate.pos')]
   fn <- file.path(dirs$results, "clustered-tailseqs.txt")
   write.table(as.matrix(d), fn, row.names=FALSE, quote=FALSE, sep='\t')
   d
@@ -251,10 +251,9 @@ if (!TEST.MODE) {
     # "chr", which is the chromosome the tail sequence mapped to, and
     # "mate.chr", which is the chromosome the mapping mate mapped to.
     d <- with(aln, {
-      tmp <- strsplit(qname, ";;", fixed=TRUE)
-      mate.pos <- as.numeric(sapply(tmp, function(x) x[3]))
-      split <- as.numeric(sapply(tmp, function(x) x[2]))
-      mate.chr <- sapply(strsplit(tmp, function(x) x[1]))
+      mate.chr <- sub(".*chr=(chr[0-9XYM]+).*", "\\1", qname)
+      split <- as.numeric(sub(".*split=([0-9]+).*", "\\1", qname))
+      pos <- as.numeric(sub(".*pos=([0-9]+).*", "\\1", qname))
       data.frame(chr=as.character(rname), start=pos, width=qwidth, strand=strand, seq=as.character(seq), 
                  split=split, mate.chr=mate.chr, mate.pos=mate.pos, mapq=mapq, cigar=cigar, stringsAsFactors=FALSE)
     })
