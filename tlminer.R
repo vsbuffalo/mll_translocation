@@ -110,7 +110,7 @@ with(mappedunmapped[[1]], {
   mpos <- split(mpos, mrnm)
   lapply(names(seqs), function(chr) {
     tmp <- seqs[[chr]]
-    names(tmp) <- paste(headers[[chr]], mpos, sep=";;;")
+    names(tmp) <- paste(headers[[chr]], mpos[[chr]], sep=";;mpos=")
     fn <- file.path(dirs$unmapped.mates, sprintf("%s-unmapped-mates.fasta", chr))
     write.XStringSet(tmp, file=fn, format="fasta")
     TRUE
@@ -149,7 +149,7 @@ for (bamfile in dir(dirs$aln, pattern="\\.bam")) {
   fusions <- data.frame(qname=aln$qname[!no.fusion], aln$rname[!no.fusion], 
                         do.call(rbind, fusions), stringsAsFactors=FALSE)
   tailseqs <- as(fusions$unmapped, "XStringSet")
-  names(tailseqs) <- paste(fusions$qname, fusions$break.pos, sep=';;')
+  names(tailseqs) <- paste(fusions$qname, fusions$break.pos, sep=';;split=')
   fn <- file.path(dirs$tailseqs, sprintf("%s.fasta", chr))
   write.XStringSet(tailseqs, file=fn, format="fasta")
 }
@@ -159,7 +159,7 @@ for (fasta.file in dir(dirs$tailseqs, pattern="\\.fasta$")) {
   chr <- getRootname(fasta.file)
   fn <- file.path(dirs$tailseqs, fasta.file)
   cfn <- file.path(dirs$cluster, sprintf("%s-clusters.fasta", chr))
-  ok <- system(sprintf("%s -i %s -o %s -g 1 -d 200 > /dev/null", cdhitcmd, fn, cfn))
+  ok <- system(sprintf("%s -i %s -o %s -g 1 -d 0 > /dev/null", cdhitcmd, fn, cfn))
   stopifnot(ok == 0)
 }
 
@@ -194,7 +194,11 @@ for (fasta.file in dir(dirs$cluster, pattern="\\-clusters.fasta$")) {
   clusters <- merge(clusters, rep.seqs, by.x=0, by.y=0)
   clusters <- cbind(chr, clusters)
   colnames(clusters) <- c('chr', 'name', 'seq', 'count')
-  clusters$split <- unlist(sapply(strsplit(clusters$name, ';;'), function(x) x[2]))
+
+  # extract out mate mapping position and break point from clusters
+  clusters$mate.pos <- as.numeric(sub(".*;;mpos=(\\d+).*", "\\1", clusters$name))
+  clusters$split <- as.numeric(sub(".*;;split=(\\d+).*", "\\1", clusters$name))
+
   all.clusters[[chr]] <- clusters
 }
   
@@ -213,7 +217,7 @@ if (!TEST.MODE) {
   fn <- file.path(dirs$cluster.aln, "cluster-seqs.fasta")
   local({
     tmp <- as(unlist(cluster.cands$seq), "XStringSet")
-    names(tmp) <- paste(cluster.cands$chr, cluster.cands$split, sep=";;;")
+    names(tmp) <- sprintf("chr=%s;;split=%s;;mpos=%s", cluster.cands$chr, cluster.cands$split, cluster.cands$mate.pos)
     write.XStringSet(tmp, file=fn, format="fasta")
   })
   edit.dist <- 8
@@ -247,10 +251,12 @@ if (!TEST.MODE) {
     # "chr", which is the chromosome the tail sequence mapped to, and
     # "mate.chr", which is the chromosome the mapping mate mapped to.
     d <- with(aln, {
-      split <- as.numeric(sapply(strsplit(qname, ";;;", fixed=TRUE), function(x) x[2]))
-      mate.chr <- sapply(strsplit(qname, ";;;", fixed=TRUE), function(x) x[1])
+      tmp <- strsplit(qname, ";;", fixed=TRUE)
+      mate.pos <- as.numeric(sapply(tmp, function(x) x[3]))
+      split <- as.numeric(sapply(tmp, function(x) x[2]))
+      mate.chr <- sapply(strsplit(tmp, function(x) x[1])
       data.frame(chr=as.character(rname), start=pos, width=qwidth, strand=strand, seq=as.character(seq), 
-                 split=split, mate.chr=mate.chr, mapq=mapq, cigar=cigar, stringsAsFactors=FALSE)
+                 split=split, mate.chr=mate.chr, mate.pos=mate.pos, mapq=mapq, cigar=cigar, stringsAsFactors=FALSE)
     })
 
     tmp <- apply(d, 1, function(x)
