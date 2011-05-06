@@ -246,45 +246,55 @@ tailseqs.aln.param <- ScanBamParam(flag=scanBamFlag(isUnmappedQuery=FALSE),
                                    what=c("rname", "qname", "pos", "cigar", "qwidth", "mapq", "strand", "seq"))
 if (!TEST.MODE) {
   aln <- scanBam(bamfile, param=tailseqs.aln.param)[[1]]
-  
-  tailseqs <- local({
 
-    # Fit the BAM lists into a nice dataframe, extracting the split
-    # from the qname header info. Note that this contains the columns
-    # "chr", which is the chromosome the tail sequence mapped to, and
-    # "mate.chr", which is the chromosome the mapping mate mapped to.
-    d <- with(aln, {
-      mate.chr <- sub(".*chr=(chr[0-9XYM]+).*", "\\1", qname)
-      mate.strand <- sub(".*;;mstrand=([\\+\\-]).*", "\\1", qname)
-      split <- as.numeric(sub(".*split=([0-9]+).*", "\\1", qname))
-      mate.pos <- as.numeric(sub(".*mpos=([0-9]+).*", "\\1", qname))
-      data.frame(chr=as.character(rname), start=pos, width=qwidth, strand=strand, seq=as.character(seq), 
-                 split=split, mate.chr=mate.chr, mate.pos=mate.pos, mate.strand=mate.strand,
-                 mapq=mapq, cigar=cigar, stringsAsFactors=FALSE)
+  # Fit the BAM lists into a nice dataframe, extracting the split
+  # from the qname header info. Note that this contains the columns
+  # "chr", which is the chromosome the tail sequence mapped to, and
+  # "mate.chr", which is the chromosome the mapping mate mapped to.
+  d <- with(aln, {
+    mate.chr <- sub(".*chr=(chr[0-9XYM]+).*", "\\1", qname)
+    mate.strand <- sub(".*;;mstrand=([\\+\\-]).*", "\\1", qname)
+    split <- as.numeric(sub(".*split=([0-9]+).*", "\\1", qname))
+    mate.pos <- as.numeric(sub(".*mpos=([0-9]+).*", "\\1", qname))
+    data.frame(chr=as.character(rname), start=pos, width=qwidth, strand=strand, seq=as.character(seq), 
+               split=split, mate.chr=mate.chr, mate.pos=mate.pos, mate.strand=mate.strand,
+               mapq=mapq, cigar=cigar, stringsAsFactors=FALSE)
+  })
+
+  ## From the above dataframe, make GRanges of tailsequences
+  tailseqs <- unlist(local({
+    tmp <- apply(d, 1, function(x) {
+      GRanges(x[1], IRanges(as.numeric(x[2]), width=as.numeric(x[3])))
     })
-
-    tmp <- apply(d, 1, function(x)
-                 GRanges(x[1], IRanges(as.numeric(x[2]), width=as.numeric(x[3]))))
     gr <- GRangesList(tmp)
-  })
-
-  no.chr11 <- names(altchr.mappings)[names(altchr.mappings) != 'chr11']
-  splitmates.gr <- lapply(no.chr11, function(chr) {
-    GRanges(chr, altchr.mappings[[chr]])
-  })
-
-  overlaps = findOverlaps(tailseqs, GRangesList(splitmates.gr))
-  as.character(seqnames(tailseqs))[as.matrix(oo)[,1]]
-  as.character(seqnames(GRangesList(splitmates.gr)))
-
-
-  ## alt
-  has.islands <- names(splitmate.islands)[sapply(splitmate.islands, function(x) length(x) != 0)]
-  islands.gr <- GRangesList(lapply(has.islands, function(chr) {
-    GRanges(chr, splitmate.islands[[chr]])
   }))
-  
+  elementMetadata(tailseqs) = d[, c("split", "mate.chr", "mate.pos", "mate.strand", "mapq", "cigar")]
+
+
+  ## Find all split mate islands, covert to GRanges
+  has.islands <- names(splitmate.islands)[sapply(splitmate.islands, function(x) length(x) != 0)]
+  islands <- unlist(GRangesList(lapply(has.islands, function(chr) {
+    tmp <- GRanges(chr, splitmate.islands[[chr]])
+  })))
+  elementMetadata(islands) <- data.frame(meanCoverage=unlist(sapply(splitmate.islands[has.islands], viewMeans)))
+
+  ## Find all overlaps between the tail sequences and the split mate
+  ## islands. First, we need to expand the split mate islands (so
+  ## matching is a bit fuzzier).
+  islands.fuzzy <- islands
+  buffer <- 400L
+  start(islands.fuzzy) <- start(islands.fuzzy) - buffer
+  end(islands.fuzzy) <- end(islands.fuzzy) + buffer
+
+  top.candidates <- subsetByOverlaps(tailseqs, islands.fuzzy)
+  tc.metadata <- local({
+    mc <- elementMetadata(islands)[as.matrix(findOverlaps(tailseqs, islands.fuzzy))[, 2],]
+    mdf <- elementMetadata(top.candidates)
+    mdf$splitmate.island.mean.coverage <- mc
+    mdf
+  })
+  elementMetadata(top.candidates) <- tc.metadata
+
+  write.table(as.data.frame(top.candidates), quote=FALSE, sep="\t", 
+              file=file.path(dirs$base, "top-candidates.txt"))
 }
-
-
-### add mapped mate position to d
