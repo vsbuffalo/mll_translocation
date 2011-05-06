@@ -1,6 +1,7 @@
 ## tlminer.R - mine translocations
 suppressMessages({
   library(Rsamtools)
+  library(bitops)
   library(RSQLite)
   library(org.Hs.eg.db)
 })
