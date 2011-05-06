@@ -191,7 +191,7 @@ for (fasta.file in dir(dirs$cluster, pattern="\\-clusters.fasta$")) {
     seqs <- lapply(tmp, function(x) x[[2]])
     
     tmp <- as.data.frame(cbind(seqs))
-    rownames(tmp) <- headers
+    rownames(tmp) <- make.names(headers, unique=TRUE)
     tmp
   })
   
