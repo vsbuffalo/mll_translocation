@@ -20,7 +20,7 @@ TEST.MODE <- system('uname -s', intern=TRUE) == 'Darwin'
 # do bamfile = "..." and then source() this.
 if ((interactive() || TEST.MODE) && !exists(bamfile)) { 
   bamfile <- "CAGTACT.sorted.bam"
-} else if(!interactive()) {
+} else if (!interactive() && !exists(bamfile)) {
   args <- commandArgs()
   arg.delim <- which(args == '--args') + 1
   args <- args[arg.delim:length(args)]
