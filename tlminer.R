@@ -254,7 +254,7 @@ if (!TEST.MODE) {
       tmp <- strsplit(qname, ";;", fixed=TRUE)
       mate.pos <- as.numeric(sapply(tmp, function(x) x[3]))
       split <- as.numeric(sapply(tmp, function(x) x[2]))
-      mate.chr <- sapply(strsplit(tmp, function(x) x[1])
+      mate.chr <- sapply(strsplit(tmp, function(x) x[1]))
       data.frame(chr=as.character(rname), start=pos, width=qwidth, strand=strand, seq=as.character(seq), 
                  split=split, mate.chr=mate.chr, mate.pos=mate.pos, mapq=mapq, cigar=cigar, stringsAsFactors=FALSE)
     })
