@@ -19,6 +19,12 @@ rootdir=$(basename $1)
 printf "Processing all SAM files in '%s'\n" $rootdir
 printf "Using %s thread(s)\n\n" $num_threads
 
+if [ ! -f results ]
+then
+    echo "Making directory 'results/'"
+    mkdir -p results
+fi
+
 # Check for all bam, sorted.bam, and sorted.bam.bai files
 barcodes=$(find data/$rootdir/*.sam | xargs -n1 basename | sed s/.sam//)
 coversion_needed=0
