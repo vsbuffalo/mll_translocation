@@ -43,7 +43,7 @@ then
     # Take all SAM files and convert them to BAM
     echo "Converting all SAM files to BAM files."
     find data/$rootdir/*.sam | sed s/.sam// | \
-        xargs -n1 -P $num_threads -I{} samtools view -S -b -o {}.bam {}.sam
+        xargs -n1 -P $num_threads -I{} samtools view -h -S -b -o {}.bam {}.sam
 
    # Take all BAM files and sort
     echo "Sorting all BAM files."
