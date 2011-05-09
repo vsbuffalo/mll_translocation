@@ -3,3 +3,6 @@ results/*
 *.pyc
 .#*
 .Rhistory
+methods/auto/*
+*.pdf
+methods/methods.tex
