@@ -17,9 +17,14 @@ function(file)
 
 makeResultsDir =
 # make the directory structure
-function(rootname, root.results="results") {
-  results <- checkDir(root.results)
-  base <- checkDir(file.path(, sprintf("%s-run", rootname)))
+function(rootname, groupdir=NULL, root.results="results") {
+  output <- checkDir(root.results)
+
+  if (!is.null(groupdir))
+    base <- checkDir(file.path(output, groupdir, sprintf("%s-run", rootname)))
+  else
+    base <- checkDir(file.path(output, sprintf("%s-run", rootname)))
+  
   unmapped.mates <- checkDir(file.path(base, "unmapped-mate"))
   aln <- checkDir(file.path(base, "unmapped-mate-alns"))
   tailseqs <- checkDir(file.path(base, "tailseqs"))

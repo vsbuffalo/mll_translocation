@@ -4,33 +4,39 @@ suppressMessages({
   library(bitops)
 })
 
-source("plotting-methods.R")
-source("utils.R")
+source("R/plotting-methods.R")
+source("R/utils.R")
 
 ### Config
 mll.region <- RangesList(chr11=IRanges(118307205, 118395934))
-ref <- "mll_template/mll.fasta"
+ref <- "data/mll_template/mll.fasta"
 checkBWA(dirname(ref))
 
 ### Find BAM file
+groupdir <- NULL
 TEST.MODE <- system('uname -s', intern=TRUE) == 'Darwin'
 # For testing and org-mode usesage.  The exists() check allows us to
 # do bamfile = "..." and then source() this.
 if (!exists("mapfile")) {
-  if ((interactive() || TEST.MODE)) { 
-    mapfile <- "CAGTACT.sorted.bam"
-  } else if (!interactive()) {
-    args <- commandArgs()
-    arg.delim <- which(args == '--args') + 1
-    args <- args[arg.delim:length(args)]
-    mapfile <- args[1]
+  if (interactive()) {
+    message("Running in interactive/test-mode.")
+    mapfile <- "data/barcoded_run_01/CAGTACT.sorted.bam" ## test file
+    groupdir <- "test"
+  } else {
+    message("Running in command line mode.")
+    cargs <- commandArgs()
+    arg.delim <- which(cargs == '--args') + 1
+    cargs <- cargs[arg.delim:length(cargs)]
+    mapfile <- cargs[1]
+    groupdir <- cargs[2]
   }
 }
 
 rootname <- getRootname(mapfile)
 
 ### Set up directories and check references
-dirs <- makeResultsDir(rootname)
+dirs <- makeResultsDir(rootname, groupdir=groupdir)
+cat(sprintf("Using output directory: %s\n", dirs$base))
 bwacmd <- inPath(c("bwa", "/usr/local/bin/bwa"))
 cdhitcmd <- inPath(c("cd-hit", "/usr/local/bin/cd-hit"))
 samtoolscmd <- inPath('samtools')
@@ -79,7 +85,7 @@ splitmates <- lapply(mll.forward[[1]], function(x) x[keep])
 
 ### Summarize the split-mates
 d <- with(splitmates, data.frame(rname, pos, mrnm, mpos, qwidth))
-aggregate(d$mpos, list(d$mrnm, d$mpos), length)
+#aggregate(d$mpos, list(d$mrnm, d$mpos), length)
 
 ### Look for islands
 altchr.mappings = local({
@@ -106,7 +112,7 @@ mappedunmapped.param <- ScanBamParam(what=c("qname", "rname", "pos", "mrnm", "mp
 mappedunmapped <- scanBam(mapfile, param=mappedunmapped.param)
 
 ## Group by chromosome and write to file
-with(mappedunmapped[[1]], {
+ok <- with(mappedunmapped[[1]], {
   seqs <- split(seq, mrnm)
   headers <- split(qname, mrnm)
   mpos <- split(mpos, mrnm)
