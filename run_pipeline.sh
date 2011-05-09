@@ -42,17 +42,17 @@ if [ $coversion_needed -eq 1 ]
 then
     # Take all SAM files and convert them to BAM
     echo "Converting all SAM files to BAM files."
-    find "data/$rootdir/*.sam" | sed s/.sam// | \
+    find data/$rootdir/*.sam | sed s/.sam// | \
         xargs -n1 -P $num_threads -I{} samtools view -S -b -o {}.bam {}.sam
 
    # Take all BAM files and sort
     echo "Sorting all BAM files."
-    find "data/$rootdir/*.bam" | sed s/.bam// | \
+    find data/$rootdir/*.bam | sed s/.bam// | \
         xargs -n1 -P $num_threads -I{} samtools sort {}.bam {}.sorted
     
    # Index all BAM files
     echo "Indexing all BAM files."
-    find -E "data/$rootdir/*.sorted.bam" | sed s/.sorted.bam// | \
+    find data/$rootdir/*.sorted.bam | sed s/.sorted.bam// | \
         xargs -n1 -P $num_threads -I{} samtools index {}.sorted.bam
 else
     printf "All barcoded files had the correct extensions indicating \nthey were converted to sorted and index BAM files.\n\n"
