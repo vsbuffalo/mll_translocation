@@ -320,6 +320,7 @@ if (!TEST.MODE) {
   tc.metadata <- local({
     i <- as.numeric(names(top.candidates))
 
+    # Use row names to find corersponding metadata in islands 
     tmp <- as.matrix(findOverlaps(tailseqs, islands.fuzzy))
     mc <- elementMetadata(islands)[tmp[match(i, tmp[, 1]), 2],]
     
