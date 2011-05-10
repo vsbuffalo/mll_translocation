@@ -43,8 +43,8 @@ d <- lapply(barcodes, function(f) {
   tmp <- lapply(vnames, function(x) {
     df <- read.csv(file.path(validdir, f, x), header=TRUE)
     mi <- vparts[[x]] ## get metainfo
-    attributes(df) <- c(attributes(df), chr.alt=mi['chr.alt'], chr.alt.pos=as.integer(mi['chr.alt.pos']),
-                        mll.breakpoint=as.integer(mi['mll.breakpoint']), chr.alt.strand=mi['chr.alt.strand'])
+    attributes(df) <- c(attributes(df), chr.alt=as.character(mi['chr.alt']), chr.alt.pos=as.integer(mi['chr.alt.pos']),
+                        mll.breakpoint=as.integer(mi['mll.breakpoint']), chr.alt.strand=as.character(mi['chr.alt.strand']))
     df
   })
 
@@ -52,6 +52,27 @@ d <- lapply(barcodes, function(f) {
   tmp
 })
 names(d) <- barcodes
+
+
+## Reformat list of lists into single datafram with two keys
+dd <- list()
+for (b in names(d)) {
+  # for each dataframe, add the barcode info
+  tmp <- lapply(d[[b]], function(x) {
+    atr <- attributes(x)
+    x$barcode <- b
+    x$chr.alt = atr['chr.alt']
+    x$chr.alt.strand = atr['chr.alt.strand']
+    x$chr.alt.pos = atr['chr.alt.pos']
+    x$mll.breakpoint = atr['mll.breakpoint']
+    x
+  })
+  collapsed <- do.call(rbind, tmp)
+  dd[[b]] <- collapsed
+}
+dd <- do.call(rbind, dd)
+
+rownames(dd) <- NULL
 
 
 ## Data visualization
@@ -70,3 +91,6 @@ lapply(names(d), function(b) {
     dev.off()
   })
 })
+
+
+
