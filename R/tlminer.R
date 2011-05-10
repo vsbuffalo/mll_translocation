@@ -285,7 +285,7 @@ if (!TEST.MODE) {
   ## From the above dataframe, make GRanges of tailsequences
   tailseqs <- unlist(local({
     tmp <- apply(d, 1, function(x) {
-      GRanges(x[1], IRanges(as.numeric(x[2]), width=as.numeric(x[3])))
+      GRanges(x[1], IRanges(as.numeric(x[2]), width=as.numeric(x[3])), strand=x[4])
     })
     gr <- GRangesList(tmp)
   }))
