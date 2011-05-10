@@ -75,8 +75,7 @@ mapped.mll.reverse <- countBam(mapfile, param=ScanBamParam(which=mll.region,
 # the MLL gene. Then, we join these IDs on all others in the database.
 mll.forward.param <- ScanBamParam(which=mll.region,
                                   what=c("rname", "pos", "qwidth", "qname", "mrnm", "mpos", "seq", "flag"),
-                                  flag=scanBamFlag(isUnmappedQuery=FALSE, hasUnmappedMate=FALSE,
-                                    isMinusStrand=FALSE))
+                                  flag=scanBamFlag(isUnmappedQuery=FALSE, isMinusStrand=FALSE))
 mll.forward <- scanBam(mapfile, param=mll.forward.param)
 
 # Find all entries with mrnm that is chr11 and remove these.
@@ -297,7 +296,7 @@ if (!TEST.MODE) {
   has.islands <- names(splitmate.islands)[sapply(splitmate.islands, function(x) length(x) != 0)]
   if (!length(has.islands)) {
     warning("No islands found with 40 coverage, dropping to 20.")
-    splitmate.islands <- findIslands(altchr.mappings, 20)
+    splitmate.islands <- findIslands(altchr.mappings, 10)
     splitmate.max.cov <- lapply(splitmate.islands, viewMaxs)
     has.islands <- names(splitmate.islands)[sapply(splitmate.islands, function(x) length(x) != 0)]
     if (!length(has.islands))
