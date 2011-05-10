@@ -60,7 +60,7 @@ fi
 
 # Run analysis pipeline on all BAM files
 echo "Beginning data mining analysis of all sorted and indexed BAM files."
-find data/$rootdir/*.sorted.bam | xargs -n1 -P $num_threads -I{} Rscript R/tlminer.R {} $rootdir
+find data/$rootdir/*.sorted.bam | xargs -n1 -P $num_threads -I{} Rscript R/tlminer.R {} $rootdir 2> results/$rootdir/log.txt
 
 # Compress results for post-analysis
 #find . -name "*-output" | perl -ne 'chomp; print $_ . "/results/ "' | xargs tar -czf results.tar.gz

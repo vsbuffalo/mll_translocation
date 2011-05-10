@@ -324,3 +324,5 @@ if (!TEST.MODE) {
   write.table(as.data.frame(top.candidates), quote=FALSE, sep="\t", 
               file=file.path(dirs$base, "top-candidates.txt"))
 }
+
+write(sprintf("File '%s' complete.", mapfile), stderr())
