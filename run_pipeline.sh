@@ -58,6 +58,13 @@ else
     printf "All barcoded files had the correct extensions indicating \nthey were converted to sorted and index BAM files.\n\n"
 fi
 
+
+if [ ! -f results/$rootdir/ ]
+then
+    printf "Making directory 'results/%s'" $rootdir
+    mkdir -p results/$rootdir
+fi
+
 # Run analysis pipeline on all BAM files
 echo "Beginning data mining analysis of all sorted and indexed BAM files."
 find data/$rootdir/*.sorted.bam | xargs -n1 -P $num_threads -I{} Rscript R/tlminer.R {} $rootdir 2> results/$rootdir/log.txt
