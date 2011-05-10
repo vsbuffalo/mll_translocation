@@ -96,7 +96,7 @@ altchr.mappings = local({
   })
 })
 
-findIslands <- function(x, minCoverage=30) {
+findIslands <- function(x, minCoverage=40) {
   lapply(altchr.mappings, function(x) {
     slice(coverage(x), minCoverage)
   })
@@ -296,8 +296,8 @@ if (!TEST.MODE) {
   ## Find all split mate islands, covert to GRanges
   has.islands <- names(splitmate.islands)[sapply(splitmate.islands, function(x) length(x) != 0)]
   if (!length(has.islands)) {
-    warning("No islands found with 60 coverage, dropping to 20.")
-    splitmate.islands <- findIslands, 20
+    warning("No islands found with 40 coverage, dropping to 20.")
+    splitmate.islands <- findIslands(altchr.mappings, 20)
     splitmate.max.cov <- lapply(splitmate.islands, viewMaxs)
     has.islands <- names(splitmate.islands)[sapply(splitmate.islands, function(x) length(x) != 0)]
     if (!length(has.islands))
