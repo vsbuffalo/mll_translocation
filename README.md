@@ -1,13 +1,15 @@
 MLL Translocation Miner
 =======================
 
-* Running tlminer.R
+Running tlminer.R
+-----------------
 
 `tlminer.R` can be run in two ways: via command line, and
 interactively. Either way, it requires a BAM file that has been sorted
 and indexed.
 
-** Running via command line
+Running via command line
+------------------------
 
 The helper script `run_pipeline.sh` is probably the best way to run
 `tlminer.R`. It takes two arguments:
@@ -21,7 +23,8 @@ However, you can also run `tlminer.R` with `Rscript`:
 where `groupdir` is a directory inside of results (i.e. "original_run"
 or "barcode_run_0x").
 
-** Running interactively
+Running interactively
+---------------------
 
 This is the best way to run `tlminer.R` when you want to manually
 check some results or debug the pipeline.
