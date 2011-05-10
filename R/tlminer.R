@@ -74,12 +74,13 @@ mapped.mll.reverse <- countBam(mapfile, param=ScanBamParam(which=mll.region,
 # First, we find all BAM entries in which there is a mate that maps to
 # the MLL gene. Then, we join these IDs on all others in the database.
 mll.forward.param <- ScanBamParam(which=mll.region,
-                                what=c("rname", "pos", "qwidth", "mrnm", "mpos", "seq", "flag"),
-                                flag=scanBamFlag(isUnmappedQuery=FALSE, isMinusStrand=FALSE))
+                                  what=c("rname", "pos", "qwidth", "qname", "mrnm", "mpos", "seq", "flag"),
+                                  flag=scanBamFlag(isUnmappedQuery=FALSE, hasUnmappedMate=FALSE,
+                                    isMinusStrand=FALSE))
 mll.forward <- scanBam(mapfile, param=mll.forward.param)
 
 # Find all entries with mrnm that is chr11 and remove these.
-keep <- with(mll.forward[[1]], mrnm != 'chr11')
+keep <- which(with(mll.forward[[1]], mrnm != 'chr11'))
 splitmates <- lapply(mll.forward[[1]], function(x) x[keep])
 
 
