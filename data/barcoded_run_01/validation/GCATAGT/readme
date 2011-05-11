@@ -1,0 +1,3 @@
+# fusionValidator.pl command lines:
+
+/desktop/jfass/scripts/perl_scripts/Vaughan_MLL/fusionValidator.pl -m ../../../MLL.fna -h ../../../ref_hg19/hg19_24chrom.fasta -r ../../reads/GCATAGT.fANDr.raw -i ../../../pooled-top-candidates.txt > GCATAGT.fusionValidator.log &

@@ -74,23 +74,26 @@ dd <- do.call(rbind, dd)
 
 rownames(dd) <- NULL
 
+dd <- transform(dd, chr.alt=factor(unlist(chr.alt)),
+                chr.alt.strand=factor(unlist(chr.alt.strand)),
+                chr.alt.pos=as.integer(unlist(chr.alt.pos)),
+                mll.breakpoint=as.integer(unlist(mll.breakpoint)),
+                barcode=factor(unlist(barcode)))
 
 ## Data visualization
-lapply(names(d), function(b) {
-  lapply(names(d[[b]]), function(v) {
-    odir <- checkDir(file.path("results", groupdir, "validation", b))
+## lapply(names(d), function(b) {
+##   lapply(names(d[[b]]), function(v) {
+##     odir <- checkDir(file.path("results", groupdir, "validation", b))
 
-    # we want to remove .output and change to .png
-    fn <- gsub(".output", ".png", v, fixed=TRUE)
+##     # we want to remove .output and change to .png
+##     fn <- gsub(".output", ".png", v, fixed=TRUE)
    
-    fp <- file.path(odir, fn)
-    png(fp, width=800, height=800, res=100)
-    message(sprintf("creating plot for '%s', saving to '%s'", v, fp))
-    p <- levelplot(count ~ MLL.offset + ChrAlt.offset, data=d[[b]][[v]])
-    print(p)
-    dev.off()
-  })
-})
-
-
+##     fp <- file.path(odir, fn)
+##     png(fp, width=800, height=800, res=100)
+##     message(sprintf("creating plot for '%s', saving to '%s'", v, fp))
+##     p <- levelplot(count ~ MLL.offset + ChrAlt.offset, data=d[[b]][[v]])
+##     print(p)
+##     dev.off()
+##   })
+## })
 

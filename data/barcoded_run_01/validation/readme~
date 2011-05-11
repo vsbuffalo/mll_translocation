@@ -1,0 +1,17 @@
+# fusionValidator.pl command lines:
+
+/desktop/jfass/scripts/perl_scripts/Vaughan_MLL/fusionValidator.pl -m ../../MLL.fna -h ../../ref_hg19/hg19_24chrom.fasta -r ../reads/ACACTGT.fANDr.raw -i TOBEPROVIDED > ACACTGT.fusionValidator.log &
+
+/desktop/jfass/scripts/perl_scripts/Vaughan_MLL/fusionValidator.pl -m ../../MLL.fna -h ../../ref_hg19/hg19_24chrom.fasta -r ../reads/ACTAGCT.fANDr.raw -i TOBEPROVIDED > ACTAGCT.fusionValidator.log &
+
+/desktop/jfass/scripts/perl_scripts/Vaughan_MLL/fusionValidator.pl -m ../../MLL.fna -h ../../ref_hg19/hg19_24chrom.fasta -r ../reads/ATGGCTT.fANDr.raw -i TOBEPROVIDED > ATGGCTT.fusionValidator.log &
+
+/desktop/jfass/scripts/perl_scripts/Vaughan_MLL/fusionValidator.pl -m ../../MLL.fna -h ../../ref_hg19/hg19_24chrom.fasta -r ../reads/CACAGTT.fANDr.raw -i TOBEPROVIDED > CACAGTT.fusionValidator.log &
+
+/desktop/jfass/scripts/perl_scripts/Vaughan_MLL/fusionValidator.pl -m ../../MLL.fna -h ../../ref_hg19/hg19_24chrom.fasta -r ../reads/CAGTACT.fANDr.raw -i TOBEPROVIDED > CAGTACT.fusionValidator.log &
+
+/desktop/jfass/scripts/perl_scripts/Vaughan_MLL/fusionValidator.pl -m ../../MLL.fna -h ../../ref_hg19/hg19_24chrom.fasta -r ../reads/CATTCGT.fANDr.raw -i TOBEPROVIDED > CATTCGT.fusionValidator.log &
+
+/desktop/jfass/scripts/perl_scripts/Vaughan_MLL/fusionValidator.pl -m ../../MLL.fna -h ../../ref_hg19/hg19_24chrom.fasta -r ../reads/CGAGATT.fANDr.raw -i TOBEPROVIDED > CGAGATT.fusionValidator.log &
+
+/desktop/jfass/scripts/perl_scripts/Vaughan_MLL/fusionValidator.pl -m ../../MLL.fna -h ../../ref_hg19/hg19_24chrom.fasta -r ../reads/GCATAGT.fANDr.raw -i TOBEPROVIDED > GCATAGT.fusionValidator.log &
