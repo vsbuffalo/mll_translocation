@@ -172,7 +172,8 @@ for (fasta.file in dir(dirs$tailseqs, pattern="\\.fasta$")) {
   cfn <- file.path(dirs$cluster, sprintf("%s-clusters.fasta", chr))
   if (!system(sprintf('test $(wc -l %s | cut -f1 -d" ") -gt 2', fn))) { ## ! because call returns 1 on error
     ok <- system(sprintf('%s -i %s -o %s -g 1 -d 0 > /dev/null', cdhitcmd, fn, cfn))
-    stopifnot(ok == 0)
+    if (ok == 0)
+      warning(sprintf("Skipping FASTA file '%s' - error with cd-hit"), fasta.file)
   } else {
     warning(sprintf("Skipping FASTA file '%s' - too short (wc <=2)"), fasta.file)
   }
