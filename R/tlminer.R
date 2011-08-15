@@ -155,6 +155,8 @@ for (bamfile in dir(dirs$aln, pattern="\\.bam")) {
   })
   no.fusion <- sapply(tmp, is.null)
   fusions <- tmp[!no.fusion]
+  if (is.null(fusions))
+    next()
   fusions <- data.frame(qname=aln$qname[!no.fusion], aln$rname[!no.fusion], 
                         do.call(rbind, fusions), stringsAsFactors=FALSE)
   tailseqs <- as(fusions$unmapped, "XStringSet")
