@@ -150,6 +150,8 @@ for (bamfile in dir(dirs$aln, pattern="\\.bam")) {
   aln <- scanBam(file.path(dirs$aln, bamfile), param=param)[[1]]
   fd <- data.frame(as.character(aln$seq), aln$cigar, aln$pos, stringsAsFactors=FALSE)
   tmp <- apply(fd, 1, function(x) {
+    if (FALSE %in% x)
+      return(NULL)
     f <- findFusion(x[1], x[2], as.numeric(x[3]))
     unlist(f)
   })
