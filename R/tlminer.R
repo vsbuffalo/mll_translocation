@@ -85,6 +85,9 @@ splitmates <- lapply(mll.forward[[1]], function(x) x[keep])
 
 ### Summarize the split-mates
 splitmates <- d <- with(splitmates, data.frame(rname, pos, mrnm, mpos, qwidth)) ## d was used originally as a temp var
+write.table(splitmates, quote=FALSE, sep="\t", 
+            file=file.path(dirs$base, "splitread-candidates.txt"))
+
 #aggregate(d$mpos, list(d$mrnm, d$mpos), length)
 
 ### Look for islands
