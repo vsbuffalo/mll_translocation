@@ -126,7 +126,7 @@ ok <- with(mappedunmapped[[1]], {
   })
 })
 
-stopifnot(ok)
+stopifnot(all(ok))
 
 ## Map mapped-unmapped pairs
 # run long read aligner on all samples
