@@ -277,73 +277,72 @@ if (!TEST.MODE) {
 ### Query out overlaps between aligned tail sequences and split-mate regions
 tailseqs.aln.param <- ScanBamParam(flag=scanBamFlag(isUnmappedQuery=FALSE), 
                                    what=c("rname", "qname", "pos", "cigar", "qwidth", "mapq", "strand", "seq"))
-if (!TEST.MODE) {
-  aln <- scanBam(bamfile, param=tailseqs.aln.param)[[1]]
+aln <- scanBam(bamfile, param=tailseqs.aln.param)[[1]]
 
-  # Fit the BAM lists into a nice dataframe, extracting the split
-  # from the qname header info. Note that this contains the columns
-  # "chr", which is the chromosome the tail sequence mapped to, and
-  # "mate.chr", which is the chromosome the mapping mate mapped to.
-  d <- with(aln, {
-    mate.chr <- sub(".*chr=(chr[0-9XYM]+).*", "\\1", qname)
-    mate.strand <- sub(".*;;mstrand=([\\+\\-]).*", "\\1", qname)
-    split <- as.numeric(sub(".*split=([0-9]+).*", "\\1", qname))
-    mate.pos <- as.numeric(sub(".*mpos=([0-9]+).*", "\\1", qname))
-    data.frame(chr=as.character(rname), start=pos, width=qwidth, strand=strand, seq=as.character(seq), 
-               split=split, mate.chr=mate.chr, mate.pos=mate.pos, mate.strand=mate.strand,
-               mapq=mapq, cigar=cigar, stringsAsFactors=FALSE)
+# Fit the BAM lists into a nice dataframe, extracting the split
+# from the qname header info. Note that this contains the columns
+# "chr", which is the chromosome the tail sequence mapped to, and
+# "mate.chr", which is the chromosome the mapping mate mapped to.
+d <- with(aln, {
+  mate.chr <- sub(".*chr=(chr[0-9XYM]+).*", "\\1", qname)
+  mate.strand <- sub(".*;;mstrand=([\\+\\-]).*", "\\1", qname)
+  split <- as.numeric(sub(".*split=([0-9]+).*", "\\1", qname))
+  mate.pos <- as.numeric(sub(".*mpos=([0-9]+).*", "\\1", qname))
+  data.frame(chr=as.character(rname), start=pos, width=qwidth, strand=strand, seq=as.character(seq), 
+             split=split, mate.chr=mate.chr, mate.pos=mate.pos, mate.strand=mate.strand,
+             mapq=mapq, cigar=cigar, stringsAsFactors=FALSE)
+})
+
+## From the above dataframe, make GRanges of tailsequences
+tailseqs <- unlist(local({
+  tmp <- apply(d, 1, function(x) {
+    GRanges(x[1], IRanges(as.numeric(x[2]), width=as.numeric(x[3])), strand=x[4])
   })
-
-  ## From the above dataframe, make GRanges of tailsequences
-  tailseqs <- unlist(local({
-    tmp <- apply(d, 1, function(x) {
-      GRanges(x[1], IRanges(as.numeric(x[2]), width=as.numeric(x[3])), strand=x[4])
-    })
-    gr <- GRangesList(tmp)
-  }))
-  elementMetadata(tailseqs) = d[, c("split", "mate.chr", "mate.pos", "mate.strand", "mapq", "cigar")]
+  gr <- GRangesList(tmp)
+}))
+elementMetadata(tailseqs) = d[, c("split", "mate.chr", "mate.pos", "mate.strand", "mapq", "cigar")]
 
 
-  ## Find all split mate islands, covert to GRanges
+## Find all split mate islands, covert to GRanges
+has.islands <- names(splitmate.islands)[sapply(splitmate.islands, function(x) length(x) != 0)]
+if (!length(has.islands)) {
+  warning("No islands found with 40 coverage, dropping to 20.")
+  splitmate.islands <- findIslands(altchr.mappings, 10)
+  splitmate.max.cov <- lapply(splitmate.islands, viewMaxs)
   has.islands <- names(splitmate.islands)[sapply(splitmate.islands, function(x) length(x) != 0)]
-  if (!length(has.islands)) {
-    warning("No islands found with 40 coverage, dropping to 20.")
-    splitmate.islands <- findIslands(altchr.mappings, 10)
-    splitmate.max.cov <- lapply(splitmate.islands, viewMaxs)
-    has.islands <- names(splitmate.islands)[sapply(splitmate.islands, function(x) length(x) != 0)]
-    if (!length(has.islands))
-      write(sprintf("No islands with 20 coverage; manually run sample '%s'\n", mapfile), stderr())
-  }
-    
-  islands <- unlist(GRangesList(lapply(has.islands, function(chr) {
-    tmp <- GRanges(chr, splitmate.islands[[chr]])
-  })))
-  elementMetadata(islands) <- data.frame(meanCoverage=unlist(sapply(splitmate.islands[has.islands], viewMeans)))
-
-  ## Find all overlaps between the tail sequences and the split mate
-  ## islands. First, we need to expand the split mate islands (so
-  ## matching is a bit fuzzier).
-  islands.fuzzy <- islands
-  buffer <- 400L
-  start(islands.fuzzy) <- start(islands.fuzzy) - buffer
-  end(islands.fuzzy) <- end(islands.fuzzy) + buffer
-
-  top.candidates <- subsetByOverlaps(tailseqs, islands.fuzzy)
-  tc.metadata <- local({
-    i <- as.numeric(names(top.candidates))
-
-    # Use row names to find corersponding metadata in islands 
-    tmp <- as.matrix(findOverlaps(tailseqs, islands.fuzzy))
-    mc <- elementMetadata(islands)[tmp[match(i, tmp[, 1]), 2],]
-    
-    mdf <- elementMetadata(top.candidates)
-    mdf$splitmate.island.mean.coverage <- mc
-    mdf
-  })
-  elementMetadata(top.candidates) <- tc.metadata
-
-  write.table(as.data.frame(top.candidates), quote=FALSE, sep="\t", 
-              file=file.path(dirs$base, "top-candidates.txt"))
+  if (!length(has.islands))
+    write(sprintf("No islands with 20 coverage; manually run sample '%s'\n", mapfile), stderr())
 }
+
+islands <- unlist(GRangesList(lapply(has.islands, function(chr) {
+  tmp <- GRanges(chr, splitmate.islands[[chr]])
+})))
+elementMetadata(islands) <- data.frame(meanCoverage=unlist(sapply(splitmate.islands[has.islands], viewMeans)))
+
+## Find all overlaps between the tail sequences and the split mate
+## islands. First, we need to expand the split mate islands (so
+## matching is a bit fuzzier).
+islands.fuzzy <- islands
+buffer <- 400L
+start(islands.fuzzy) <- start(islands.fuzzy) - buffer
+end(islands.fuzzy) <- end(islands.fuzzy) + buffer
+
+top.candidates <- subsetByOverlaps(tailseqs, islands.fuzzy)
+tc.metadata <- local({
+  i <- as.numeric(names(top.candidates))
+  
+  # Use row names to find corersponding metadata in islands 
+  tmp <- as.matrix(findOverlaps(tailseqs, islands.fuzzy))
+  mc <- elementMetadata(islands)[tmp[match(i, tmp[, 1]), 2],]
+  
+  mdf <- elementMetadata(top.candidates)
+  mdf$splitmate.island.mean.coverage <- mc
+  mdf
+})
+elementMetadata(top.candidates) <- tc.metadata
+
+write.table(as.data.frame(top.candidates), quote=FALSE, sep="\t", 
+            file=file.path(dirs$base, "top-candidates.txt"))
+
 
 write(sprintf("File '%s' complete.", mapfile), stderr())
