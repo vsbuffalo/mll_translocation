@@ -84,7 +84,7 @@ splitmates <- lapply(mll.forward[[1]], function(x) x[keep])
 
 
 ### Summarize the split-mates
-d <- with(splitmates, data.frame(rname, pos, mrnm, mpos, qwidth))
+splitmates <- d <- with(splitmates, data.frame(rname, pos, mrnm, mpos, qwidth)) ## d was used originally as a temp var
 #aggregate(d$mpos, list(d$mrnm, d$mpos), length)
 
 ### Look for islands
@@ -125,6 +125,8 @@ ok <- with(mappedunmapped[[1]], {
     TRUE
   })
 })
+
+stopifnot(ok)
 
 ## Map mapped-unmapped pairs
 # run long read aligner on all samples
