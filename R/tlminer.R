@@ -1,6 +1,7 @@
 ## tlminer.R - mine translocations
 suppressMessages({
   library(Rsamtools)
+  library(ShortRead)
   library(bitops)
 })
 
@@ -350,3 +351,79 @@ write.table(as.data.frame(top.candidates), quote=FALSE, sep="\t",
 
 
 write(sprintf("File '%s' complete.", mapfile), stderr())
+
+
+#### Secondary analysis - splitread technique
+# read in all unmapped reads, convert to workable format, save to FASTA for mapping
+unmapped <- scanBam(mapfile, param=ScanBamParam(flag=scanBamFlag(isUnmappedQuery=TRUE)))
+unmapped.seqs <- as(unmapped[[1]]$seq, "XStringSet")
+names(unmapped.seqs) <- unmapped[[1]]$qname
+fn <- file.path(dirs$splitread, "unmapped-reads.fasta")
+write.XStringSet(unmapped.seqs, file=fn, format="fasta")
+
+message("Running BWA bwasw on unmapped reads (possible splitreads).")
+bwarun <- "%s bwasw -T 10 -c 5 -t 3 %s %s > %s 2> /dev/null"
+
+samfile <- file.path(dirs$splitread, "unmapped-reads.sam")
+message(sprintf(" - mapping: %s", fasta.file))
+system(sprintf(bwarun, bwacmd, ref, fn, samfile))
+
+message(sprintf(" - converting to BAM: %s", samfile))
+bamfile <- file.path(dirs$splitread, "unmapped-reads.bam")
+system(sprintf("%s view -S -b -o %s %s 2> /dev/null", samtoolscmd, bamfile, samfile))
+
+## Now look for split reads using findFusion
+param <- ScanBamParam(simpleCigar=FALSE, flag=scanBamFlag(isUnmappedQuery=FALSE),
+                      what=c("qname", "rname", "pos", "strand", "seq", "cigar"))
+unmapped.mll.aln <- scanBam(file.path(dirs$splitread, "unmapped-reads.bam"), param=param)[[1]]
+
+fd <- with(unmapped.mll.aln, data.frame(seq=as.character(seq), cigar, pos, stringsAsFactors=FALSE))
+tmp <- mcapply(fd, 1, function(x) {
+  Cif (FALSE %in% x)
+    return(NULL)
+  f <- findFusion(x[1], x[2], as.numeric(x[3]))
+  unlist(f)
+})
+
+
+cigar.split = mclapply(fd$cigar, extractCigar, mc.cores=6)
+
+
+is.splitread <- mclapply(cigar.split, function(x) {
+  if (nrow(x) != 2)
+    return(FALSE)
+  if (x$op[1] == "M" && x$op[2] == "S")
+    return(TRUE)
+  return(FALSE)
+}, mc.cores=6)
+
+keep <- unlist(is.splitread)
+
+splitreads <- with(fd[unlist(is.splitread), ], {
+  out <- list()
+  out$mapped <- mapped=substr(seq, 1, cigar.split$length[1])
+  out$unmapped <- substr(seq, cigar.split$length[1]+1, cigar.split$length[1]+cigar.split$length[2])
+  out$break.pos <- pos+cigar.split$length[1]-1
+  out
+})
+return(list(mapped=substr(seq, 1, cigar$length[1]),
+            unmapped=substr(seq, cigar$length[1]+1, cigar$length[1]+cigar$length[2]),
+            break.pos=pos+cigar$length[1]-1))
+
+fd$mapped <- mapply(function(is.splitread, seq, cigar) {
+  if (!is.splitread)
+    return(FALSE)
+  substr(seq, 1, cigar$length[1])
+}, is.splitread, fd$seq, cigar.split)
+
+fd$unmapped <- mapply(function(is.splitread, seq, cigar) {
+    if (!is.splitread)
+          return(FALSE)
+    substr(seq, cigar$length[1]+1, cigar$length[1]+cigar$length[2])
+  }, is.splitread, fd$seq, cigar.split)
+
+fd$break.pos <- mapply(function(is.splitread, seq, pos, cigar) {
+  if (!is.splitread)
+    return(FALSE)
+  pos+cigar$length[1]-1
+}, is.splitread, fd$seq, fd$pos, cigar.split)

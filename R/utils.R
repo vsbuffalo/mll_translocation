@@ -31,10 +31,11 @@ function(rootname, groupdir=NULL, root.results="results") {
   cluster <- checkDir(file.path(base, "tailseqs-clustered"))
   cluster.aln <- checkDir(file.path(base, "clustered-tailseqs-aln"))
   results <- checkDir(file.path(base, "results"))
+  splitread <- checkDir(file.path(base, "splitread"))
   
   list(base=base, unmapped.mates=unmapped.mates, aln=aln,
        tailseqs=tailseqs, cluster=cluster, cluster.aln=cluster.aln,
-       results=results)
+       results=results, splitread=splitread)
 }
 
  
