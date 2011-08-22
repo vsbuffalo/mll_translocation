@@ -164,7 +164,7 @@ for (bamfile in dir(dirs$aln, pattern="\\.bam")) {
   })
   no.fusion <- sapply(tmp, is.null)
   fusions <- tmp[!no.fusion]
-  if (is.null(fusions))
+  if (!is.list(fusions) | is.null(fusions))
     next()
   fusions <- data.frame(qname=aln$qname[!no.fusion], aln$rname[!no.fusion], 
                         do.call(rbind, fusions), stringsAsFactors=FALSE)
@@ -422,7 +422,7 @@ fd$unmapped <- mapply(function(is.splitread, seq, cigar) {
     substr(seq, cigar$length[1]+1, cigar$length[1]+cigar$length[2])
   }, is.splitread, fd$seq, cigar.split)
 
-fd$break.pos <- mapply(function(is.splitread, seq, pos, cigar) {
+fd$break.pos <- mapply(function(is.splitread, seq, cigar) {
   if (!is.splitread)
     return(FALSE)
   pos+cigar$length[1]-1
