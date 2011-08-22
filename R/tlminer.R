@@ -3,6 +3,7 @@ suppressMessages({
   library(Rsamtools)
   library(ShortRead)
   library(bitops)
+  library(multicore)
 })
 
 source("R/plotting-methods.R")
@@ -378,16 +379,14 @@ param <- ScanBamParam(simpleCigar=FALSE, flag=scanBamFlag(isUnmappedQuery=FALSE)
 unmapped.mll.aln <- scanBam(file.path(dirs$splitread, "unmapped-reads.bam"), param=param)[[1]]
 
 fd <- with(unmapped.mll.aln, data.frame(seq=as.character(seq), cigar, pos, stringsAsFactors=FALSE))
-tmp <- mcapply(fd, 1, function(x) {
-  Cif (FALSE %in% x)
-    return(NULL)
-  f <- findFusion(x[1], x[2], as.numeric(x[3]))
-  unlist(f)
-})
-
+## tmp <- mcapply(fd, 1, function(x) {
+##   Cif (FALSE %in% x)
+##     return(NULL)
+##   f <- findFusion(x[1], x[2], as.numeric(x[3]))
+##   unlist(f)
+## })
 
 cigar.split = mclapply(fd$cigar, extractCigar, mc.cores=6)
-
 
 is.splitread <- mclapply(cigar.split, function(x) {
   if (nrow(x) != 2)
