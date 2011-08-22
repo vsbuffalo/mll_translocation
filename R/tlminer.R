@@ -413,18 +413,18 @@ keep <- unlist(is.splitread)
 
 fd$mapped <- mapply(function(is.splitread, seq, cigar) {
   if (!is.splitread)
-    return(FALSE)
+    return(NULL)
   substr(seq, 1, cigar$length[1])
 }, is.splitread, fd$seq, cigar.split)
 
 fd$unmapped <- mapply(function(is.splitread, seq, cigar) {
-    if (!is.splitread)
-          return(FALSE)
-    substr(seq, cigar$length[1]+1, cigar$length[1]+cigar$length[2])
-  }, is.splitread, fd$seq, cigar.split)
-
-fd$break.pos <- mapply(function(is.splitread, seq, cigar) {
   if (!is.splitread)
-    return(FALSE)
+    return(NULL)
+  substr(seq, cigar$length[1]+1, cigar$length[1]+cigar$length[2])
+}, is.splitread, fd$seq, cigar.split)
+
+fd$break.pos <- mapply(function(is.splitread, seq, pos, cigar) {
+  if (!is.splitread)
+    return(NULL)
   pos+cigar$length[1]-1
 }, is.splitread, fd$seq, fd$pos, cigar.split)
