@@ -398,16 +398,18 @@ is.splitread <- mclapply(cigar.split, function(x) {
 
 keep <- unlist(is.splitread)
 
-splitreads <- with(fd[unlist(is.splitread), ], {
-  out <- list()
-  out$mapped <- mapped=substr(seq, 1, cigar.split$length[1])
-  out$unmapped <- substr(seq, cigar.split$length[1]+1, cigar.split$length[1]+cigar.split$length[2])
-  out$break.pos <- pos+cigar.split$length[1]-1
-  out
-})
-return(list(mapped=substr(seq, 1, cigar$length[1]),
-            unmapped=substr(seq, cigar$length[1]+1, cigar$length[1]+cigar$length[2]),
-            break.pos=pos+cigar$length[1]-1))
+## splitreads <- with(fd[keep, ], {
+##   out <- list()
+##   out$mapped <- substr(seq, 1, cigar.split$length[1])
+##   out$unmapped <- substr(seq, cigar.split$length[1]+1, cigar.split$length[1]+cigar.split$length[2])
+##   out$break.pos <- pos+cigar.split$length[1]-1
+##   out
+## })
+
+
+## return(list(mapped=substr(seq, 1, cigar$length[1]),
+##             unmapped=substr(seq, cigar$length[1]+1, cigar$length[1]+cigar$length[2]),
+##             break.pos=pos+cigar$length[1]-1))
 
 fd$mapped <- mapply(function(is.splitread, seq, cigar) {
   if (!is.splitread)
