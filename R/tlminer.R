@@ -483,5 +483,19 @@ d <- with(aln, {
   tmp <- match(qname, fd$qname)
   data.frame(qname=qname, start=pos, chr=rname, width=qwidth, strand=strand, seq=as.character(seq), 
              mapq=mapq, cigar=cigar, count=clusters$count[match(qname, clusters$qname)],
-             mapped=fd$mapped[tmp], unmapped=fd$unmapped[tmp], stringsAsFactors=FALSE)
+             mapped=fd$mapped[tmp], unmapped=fd$unmapped[tmp], break.pos=fd$break.pos[tmp], stringsAsFactors=FALSE)
 })
+
+write.table(d, quote=FALSE, sep="\t", file=file.path(dirs$base, "splitread-top-candidates.txt"))
+## output column information:
+# qname: query name (FASTQ header)
+# start: genomic coordinate of the mapped clustered tail sequence
+# chr: which chromosome the clustered tail sequence mapped to
+# width: mapping width
+# strand: mapping strand
+# seq: the sequence that mapped (could be RC of sequence of mapped on reverse strand)
+# mapq: the mapping quality of the mapped clustered tail sequence
+# count: the number of sequences that clustered into this sequence
+# mapped: the mapped part of the splitread (FALSE if CIGAR string didn't match xMyS pattern)
+# unmapped: the unmapped part (tail sequence) of the splitread (FALSE if CIGAR string didn't match xMyS pattern)
+# break.pos: The break position in the MLL template
