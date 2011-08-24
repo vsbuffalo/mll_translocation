@@ -59,7 +59,7 @@ message("Running BWA bwasw on unmapped reads (possible splitreads).")
 bwarun <- "%s bwasw -T 10 -c 5 -t 3 %s %s > %s 2> /dev/null"
 
 samfile <- file.path(dirs$splitread, "unmapped-reads.sam")
-message(sprintf(" - mapping: %s", fasta.file))
+message(sprintf(" - mapping: %s", fn))
 system(sprintf(bwarun, bwacmd, ref, fn, samfile))
 
 message(sprintf(" - converting to BAM: %s", samfile))
