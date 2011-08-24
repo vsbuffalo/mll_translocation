@@ -2,6 +2,8 @@
 suppressMessages({
   library(Rsamtools)
   library(bitops)
+  library(multicore)
+  library(ShortRead)
 })
 
 source("R/utils.R")
