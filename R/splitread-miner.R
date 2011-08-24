@@ -181,7 +181,7 @@ d <- with(aln, {
              mapped=fd$mapped[tmp], unmapped=fd$unmapped[tmp], break.pos=fd$break.pos[tmp], stringsAsFactors=FALSE)
 })
 
-write.table(d, quote=FALSE, sep="\t", file=file.path(dirs$base, "splitread-top-candidates.txt"))
+write.table(d[order(d$count, decreasing=TRUE), ], quote=FALSE, sep="\t", file=file.path(dirs$base, "splitread-top-candidates.txt"))
 ## output column information:
 # qname: query name (FASTQ header)
 # start: genomic coordinate of the mapped clustered tail sequence
